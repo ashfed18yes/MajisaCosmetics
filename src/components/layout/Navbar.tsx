@@ -1,0 +1,303 @@
+'use client';
+
+import React, { useState } from 'react';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import {
+  Search,
+  ShoppingBag,
+  User,
+  Menu,
+  X,
+  ChevronDown,
+} from 'lucide-react';
+import SearchModal from '../search/SearchModal';
+import { useCart } from '@/context/CartContext';
+import { CATEGORIES } from '@/data/mockData';
+
+export default function Navbar() {
+  const pathname = usePathname();
+  const { totalItems, setIsCartOpen } = useCart();
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isCatDropdownOpen, setIsCatDropdownOpen] = useState(false);
+
+  const isActive = (href: string) => {
+    if (href === '/') return pathname === '/';
+    return pathname.startsWith(href);
+  };
+
+  return (
+    <>
+      {/* Floating, Detached Pill Navbar with High Contrast White Surface & Elevated Shadow */}
+      <header className="sticky top-6 sm:top-8 z-40 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full pointer-events-none">
+        <div className="pointer-events-auto bg-white border border-[#D4E5E3] rounded-full shadow-[0_14px_38px_rgba(11,65,69,0.12),0_4px_12px_rgba(11,65,69,0.04)] px-5 sm:px-8 py-3.5 sm:py-4 flex items-center justify-between transition-all">
+          
+          {/* Left: Brand Wordmark with Emblem */}
+          <div className="flex items-center gap-3 sm:gap-4 shrink-0">
+            {/* Mobile Menu Trigger */}
+            <button
+              type="button"
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              className="lg:hidden p-2 text-[#0B4145] hover:text-[#128F92] rounded-full hover:bg-[#F0F9F8] focus:outline-none transition-colors"
+              aria-label="Toggle navigation menu"
+            >
+              {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            </button>
+
+            <Link href="/" className="flex items-center gap-3 group">
+              <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-[#DDF3F2] flex items-center justify-center text-[#128F92] font-serif text-xl font-bold group-hover:bg-[#128F92] group-hover:text-white transition-colors shrink-0 shadow-sm">
+                M
+              </div>
+              <div className="flex flex-col">
+                <span className="font-serif text-xl sm:text-2xl font-bold tracking-[0.14em] text-[#0B4145] uppercase leading-tight group-hover:text-[#128F92] transition-colors">
+                  Majisa
+                </span>
+                <span className="text-[10px] uppercase tracking-[0.24em] text-[#687F8D] font-bold -mt-0.5">
+                  Cosmetics
+                </span>
+              </div>
+            </Link>
+          </div>
+
+          {/* Center: Desktop Navigation Links with Generous Spacing */}
+          <nav className="hidden lg:flex items-center gap-8 xl:gap-11 mx-6">
+            <Link
+              href="/"
+              className={`text-sm xl:text-base font-bold transition-colors py-1 ${
+                isActive('/')
+                  ? 'text-[#128F92] border-b-2 border-[#128F92]'
+                  : 'text-[#102F32] hover:text-[#128F92]'
+              }`}
+            >
+              Home
+            </Link>
+
+            <Link
+              href="/collections"
+              className={`text-sm xl:text-base font-bold transition-colors py-1 ${
+                isActive('/collections') && pathname === '/collections'
+                  ? 'text-[#128F92] border-b-2 border-[#128F92]'
+                  : 'text-[#102F32] hover:text-[#128F92]'
+              }`}
+            >
+              Collections
+            </Link>
+
+            {/* Categories Dropdown */}
+            <div
+              className="relative"
+              onMouseEnter={() => setIsCatDropdownOpen(true)}
+              onMouseLeave={() => setIsCatDropdownOpen(false)}
+            >
+              <button
+                className={`flex items-center gap-1.5 text-sm xl:text-base font-bold transition-colors py-1 ${
+                  pathname.startsWith('/collections/')
+                    ? 'text-[#128F92]'
+                    : 'text-[#102F32] hover:text-[#128F92]'
+                }`}
+                aria-expanded={isCatDropdownOpen}
+              >
+                <span>Categories</span>
+                <ChevronDown className="w-4 h-4 opacity-75" />
+              </button>
+
+              {/* Dropdown Menu */}
+              {isCatDropdownOpen && (
+                <div className="absolute top-full -left-4 w-60 pt-3 z-50 animate-in fade-in zoom-in-95 duration-150">
+                  <div className="bg-white border border-[#D4E5E3] rounded-[24px] shadow-[0_16px_36px_rgba(11,65,69,0.12)] py-3 px-2">
+                    {CATEGORIES.map((cat) => (
+                      <Link
+                        key={cat.id}
+                        href={`/collections/${cat.slug}`}
+                        onClick={() => setIsCatDropdownOpen(false)}
+                        className="block px-4 py-2.5 text-sm text-[#102F32] hover:bg-[#F0F9F8] hover:text-[#128F92] rounded-xl transition-colors font-bold"
+                      >
+                        {cat.name}
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <Link
+              href="/brands"
+              className={`text-sm xl:text-base font-bold transition-colors py-1 ${
+                isActive('/brands')
+                  ? 'text-[#128F92] border-b-2 border-[#128F92]'
+                  : 'text-[#102F32] hover:text-[#128F92]'
+              }`}
+            >
+              Brands
+            </Link>
+
+            <Link
+              href="/contact"
+              className={`text-sm xl:text-base font-bold transition-colors py-1 ${
+                isActive('/contact')
+                  ? 'text-[#128F92] border-b-2 border-[#128F92]'
+                  : 'text-[#102F32] hover:text-[#128F92]'
+              }`}
+            >
+              Contact
+            </Link>
+          </nav>
+
+          {/* Right: Actions Group with Clear Separation */}
+          <div className="flex items-center gap-3 sm:gap-4 shrink-0">
+            {/* Search Icon */}
+            <button
+              type="button"
+              onClick={() => setIsSearchOpen(true)}
+              className="w-11 h-11 flex items-center justify-center text-[#0B4145] hover:text-[#128F92] rounded-full bg-[#F0F9F8] hover:bg-[#DDF3F2] transition-colors border border-[#DDF3F2]/60"
+              aria-label="Search catalog"
+            >
+              <Search className="w-4 h-4 stroke-[2.2]" />
+            </button>
+
+            {/* Account Icon */}
+            <Link
+              href="/account"
+              className="w-11 h-11 flex items-center justify-center text-[#0B4145] hover:text-[#128F92] rounded-full bg-[#F0F9F8] hover:bg-[#DDF3F2] transition-colors border border-[#DDF3F2]/60"
+              aria-label="My Account"
+            >
+              <User className="w-4 h-4 stroke-[2.2]" />
+            </Link>
+
+            {/* Subtle Divider before Bag CTA */}
+            <div className="h-6 w-px bg-[#DDF3F2] hidden sm:block mx-0.5" />
+
+            {/* Distinct Rounded Teal Pill Bag Button */}
+            <button
+              type="button"
+              onClick={() => setIsCartOpen(true)}
+              className="flex items-center gap-2.5 px-5 sm:px-6 py-3 rounded-full bg-[#128F92] hover:bg-[#0B4145] text-white text-xs sm:text-sm font-bold shadow-cta transition-all hover:scale-102"
+              aria-label={`Shopping bag with ${totalItems} items`}
+            >
+              <ShoppingBag className="w-4 h-4 stroke-[2.2]" />
+              <span className="hidden sm:inline">Bag</span>
+              {totalItems > 0 && (
+                <span className="bg-white text-[#0B4145] text-xs font-extrabold px-2.5 py-0.5 rounded-full shadow-sm">
+                  {totalItems}
+                </span>
+              )}
+            </button>
+          </div>
+        </div>
+
+        {/* Mobile Navigation Drawer */}
+        {isMobileMenuOpen && (
+          <div className="pointer-events-auto lg:hidden fixed inset-0 z-50 bg-[#0B4145]/40 backdrop-blur-sm">
+            <div className="fixed inset-y-0 left-0 w-4/5 max-w-xs bg-white shadow-2xl flex flex-col p-6 overflow-y-auto border-r border-[#D4E5E3]">
+              <div className="flex items-center justify-between pb-5 border-b border-[#DDF3F2]">
+                <Link
+                  href="/"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="flex items-center gap-2.5"
+                >
+                  <div className="w-10 h-10 rounded-full bg-[#DDF3F2] flex items-center justify-center text-[#128F92] font-serif text-lg font-bold">
+                    M
+                  </div>
+                  <div>
+                    <span className="font-serif text-xl font-bold tracking-[0.14em] text-[#0B4145] uppercase block">
+                      Majisa
+                    </span>
+                    <span className="text-[9px] uppercase tracking-[0.24em] text-[#687F8D] font-semibold">
+                      Cosmetics
+                    </span>
+                  </div>
+                </Link>
+                <button
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="p-1.5 rounded-full text-[#0B4145] hover:bg-[#F0F9F8]"
+                  aria-label="Close menu"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="py-6 space-y-4">
+                <Link
+                  href="/"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="block text-base font-bold text-[#0B4145] hover:text-[#128F92]"
+                >
+                  Home
+                </Link>
+                <Link
+                  href="/collections"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="block text-base font-bold text-[#0B4145] hover:text-[#128F92]"
+                >
+                  Collections
+                </Link>
+
+                <div className="space-y-2 pt-2 border-t border-[#DDF3F2]">
+                  <span className="text-xs uppercase font-extrabold text-[#687F8D] tracking-wider block mb-1">
+                    Categories
+                  </span>
+                  {CATEGORIES.map((cat) => (
+                    <Link
+                      key={cat.id}
+                      href={`/collections/${cat.slug}`}
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className="block text-sm font-semibold text-[#102F32] hover:text-[#128F92] pl-2"
+                    >
+                      {cat.name}
+                    </Link>
+                  ))}
+                </div>
+
+                <Link
+                  href="/brands"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="block text-base font-bold text-[#0B4145] hover:text-[#128F92] pt-2 border-t border-[#DDF3F2]"
+                >
+                  Brands
+                </Link>
+                <Link
+                  href="/contact"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="block text-base font-bold text-[#0B4145] hover:text-[#128F92]"
+                >
+                  Contact
+                </Link>
+              </div>
+
+              <div className="mt-auto pt-6 border-t border-[#DDF3F2] space-y-3">
+                <Link
+                  href="/contact"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="w-full py-3.5 px-4 rounded-full bg-white hover:bg-[#DDF3F2] border border-[#D4E5E3] text-[#0B4145] text-center block text-sm font-bold transition-colors"
+                >
+                  Contact Concierge
+                </Link>
+                <Link
+                  href="/account"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="w-full py-3.5 px-4 rounded-full bg-[#F0F9F8] border border-[#DDF3F2] text-[#0B4145] text-center block text-sm font-bold"
+                >
+                  My Account
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsMobileMenuOpen(false);
+                    setIsCartOpen(true);
+                  }}
+                  className="w-full py-3.5 px-4 rounded-full bg-[#128F92] text-white text-center block text-sm font-bold shadow-cta"
+                >
+                  Shopping Bag ({totalItems})
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </header>
+
+      {/* Global Search Modal */}
+      <SearchModal isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} />
+    </>
+  );
+}

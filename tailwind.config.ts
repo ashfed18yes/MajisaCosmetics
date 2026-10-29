@@ -1,0 +1,136 @@
+import type { Config } from "tailwindcss";
+
+const config: Config = {
+  content: [
+    "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
+    "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
+    "./src/app/**/*.{js,ts,jsx,tsx,mdx}",
+  ],
+  theme: {
+    extend: {
+      colors: {
+        // Reference Token Palette
+        teal: {
+          DEFAULT: "#128F92",
+          50: "#E7F0EF",
+          100: "#DDF3F2",
+          200: "#BCE7E5",
+          300: "#86D2CF",
+          400: "#4DB7B7",
+          500: "#128F92",
+          600: "#0E7A7D",
+          700: "#0B5E61",
+          800: "#0B4145",
+          900: "#083336",
+          950: "#041F21",
+        },
+        deepTeal: "#0B4145",
+        lightAqua: "#DDF3F2",
+        paleAqua: "#E7F0EF",
+        mutedAqua: "#E7F0EF",
+        cardBorder: "#D4E5E3",
+        softIvory: "#FAF8F3",
+        warmBeige: "#E9DDCD",
+        primaryText: "#102F32",
+        secondaryText: "#687F8D",
+
+        // Backward compatibility mappings strictly aligned to the fresh reference palette
+        ivory: {
+          50: "#FAF8F3",
+          100: "#F0F9F8",
+          200: "#DDF3F2",
+          300: "#E9DDCD",
+          400: "#687F8D",
+        },
+        beige: {
+          50: "#FAF8F3",
+          100: "#F0F9F8",
+          200: "#DDF3F2",
+          300: "#E9DDCD",
+          400: "#BCE7E5",
+          500: "#128F92",
+        },
+        espresso: {
+          700: "#0B5E61",
+          800: "#0B4145",
+          900: "#102F32",
+          950: "#041F21",
+        },
+        taupe: {
+          400: "#8FA3AF",
+          500: "#687F8D",
+          600: "#546875",
+        },
+        terracotta: {
+          100: "#DDF3F2",
+          200: "#BCE7E5",
+          400: "#128F92",
+          500: "#128F92",
+          600: "#0E7A7D",
+        },
+        plum: {
+          50: "#F0F9F8",
+          100: "#DDF3F2",
+          200: "#BCE7E5",
+          300: "#DDF3F2",
+          400: "#128F92",
+          500: "#128F92",
+          600: "#0E7A7D",
+          700: "#0B5E61",
+          800: "#0B4145",
+          900: "#102F32",
+          950: "#041F21",
+        },
+        blush: {
+          50: "#F0F9F8",
+          100: "#DDF3F2",
+          200: "#BCE7E5",
+          300: "#DDF3F2",
+          400: "#128F92",
+          500: "#128F92",
+        },
+        rosegold: {
+          50: "#F0F9F8",
+          100: "#DDF3F2",
+          200: "#BCE7E5",
+          300: "#128F92",
+          400: "#128F92",
+          500: "#0B4145",
+        },
+        charcoal: {
+          50: "#F0F9F8",
+          100: "#DDF3F2",
+          200: "#DDF3F2",
+          300: "#DDF3F2",
+          400: "#8FA3AF",
+          500: "#687F8D",
+          600: "#546875",
+          700: "#0B4145",
+          800: "#102F32",
+          900: "#102F32",
+          950: "#041F21",
+        },
+      },
+      fontFamily: {
+        serif: ["'Cormorant Garamond'", "'Playfair Display'", "Georgia", "serif"],
+        sans: ["'Plus Jakarta Sans'", "Inter", "-apple-system", "BlinkMacSystemFont", "system-ui", "sans-serif"],
+      },
+      boxShadow: {
+        pill: "0 14px 40px -4px rgba(11, 65, 69, 0.12), 0 4px 14px -2px rgba(11, 65, 69, 0.05)",
+        soft: "0 10px 30px -4px rgba(11, 65, 69, 0.06)",
+        card: "0 14px 35px -6px rgba(11, 65, 69, 0.08), 0 4px 14px -2px rgba(11, 65, 69, 0.04)",
+        hover: "0 24px 50px -8px rgba(11, 65, 69, 0.14), 0 6px 18px -2px rgba(11, 65, 69, 0.06)",
+        modal: "0 25px 50px -12px rgba(11, 65, 69, 0.20)",
+        cta: "0 12px 28px -4px rgba(18, 143, 146, 0.38), 0 4px 12px -2px rgba(18, 143, 146, 0.20)",
+      },
+      borderRadius: {
+        pill: "9999px",
+        card: "28px",
+        cardLg: "32px",
+      },
+    },
+  },
+  plugins: [],
+};
+
+export default config;
