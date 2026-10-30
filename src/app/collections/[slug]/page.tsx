@@ -101,7 +101,7 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
 
         <ProductGrid
           products={products}
-          columns="grid-cols-1 min-[440px]:grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+          columns="grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
           emptyTitle={`No items in ${category.name} currently`}
           emptyDescription="Our atelier is preparing new seasonal formulations for this category."
         />

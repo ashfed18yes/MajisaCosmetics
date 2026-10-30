@@ -150,7 +150,7 @@ export default function HomePage() {
           </Link>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 sm:gap-5 lg:gap-6">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 sm:gap-4 lg:gap-6">
           {CATEGORIES.slice(0, 6).map((cat) => (
             <CategoryCard key={cat.id} category={cat} />
           ))}
@@ -197,7 +197,7 @@ export default function HomePage() {
         </div>
 
         {/* Calibrated Product Cards with Uncropped Product Visuals */}
-        <div className="grid grid-cols-1 min-[440px]:grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-5 lg:gap-6">
+        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2.5 sm:gap-4 md:gap-5 lg:gap-6">
           {displayedProducts.slice(0, 8).map((product) => (
             <ProductCard key={product.id} product={product} />
           ))}

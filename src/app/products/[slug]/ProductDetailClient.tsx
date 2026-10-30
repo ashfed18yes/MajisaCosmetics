@@ -500,7 +500,7 @@ export default function ProductDetailClient({
             </Link>
           </div>
 
-          <ProductGrid products={relatedProducts.slice(0, 3)} columns="grid-cols-1 sm:grid-cols-2 lg:grid-cols-3" />
+          <ProductGrid products={relatedProducts.slice(0, 4)} columns="grid-cols-2 sm:grid-cols-2 lg:grid-cols-4" />
         </div>
       )}
     </div>
