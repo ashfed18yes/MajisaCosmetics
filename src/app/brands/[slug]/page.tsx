@@ -38,10 +38,10 @@ export default async function BrandPage({ params }: BrandPageProps) {
   const products = getProductsByBrand(brand.slug);
 
   return (
-    <div className="space-y-12 sm:space-y-14 pb-24">
+    <div className="space-y-9 sm:space-y-12 pb-16 sm:pb-20">
       {/* Brand Hero Banner as an Elevated Card */}
-      <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 pt-2">
-        <div className="relative bg-[#0B4145] text-white rounded-[36px] overflow-hidden py-16 sm:py-22 px-8 sm:px-12 lg:px-16 shadow-[0_16px_40px_rgba(11,65,69,0.12)]">
+      <div className="max-w-[1380px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 pt-2">
+        <div className="relative bg-[#0B4145] text-white rounded-[26px] sm:rounded-[30px] overflow-hidden py-12 sm:py-16 px-6 sm:px-10 lg:px-12 shadow-[0_16px_40px_rgba(11,65,69,0.12)]">
           <div className="absolute inset-0 opacity-20">
             <Image
               src={brand.banner}
@@ -54,9 +54,9 @@ export default async function BrandPage({ params }: BrandPageProps) {
           </div>
           <div className="absolute inset-0 bg-gradient-to-t from-[#0B4145] via-[#0B4145]/85 to-transparent" />
 
-          <div className="relative max-w-3xl space-y-4">
+          <div className="relative max-w-3xl space-y-3.5">
             {/* Breadcrumbs */}
-            <nav className="inline-flex items-center gap-2 text-xs sm:text-sm text-[#DDF3F2] font-bold mb-4 tracking-wide bg-white/10 backdrop-blur-md px-4 py-1.5 rounded-full border border-white/15">
+            <nav className="inline-flex items-center gap-2 text-xs sm:text-sm text-[#DDF3F2] font-bold mb-3 tracking-wide bg-white/10 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-white/15">
               <Link href="/" className="hover:text-white transition-colors">
                 Home
               </Link>
@@ -68,26 +68,26 @@ export default async function BrandPage({ params }: BrandPageProps) {
               <span className="text-white font-bold">{brand.name}</span>
             </nav>
 
-            <div className="flex flex-wrap items-center gap-3 text-xs">
+            <div className="flex flex-wrap items-center gap-2.5 text-xs">
               {brand.origin && (
-                <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-white/15 backdrop-blur-md border border-white/20 text-[#DDF3F2] font-semibold">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/15 backdrop-blur-md border border-white/20 text-[#DDF3F2] font-semibold">
                   <MapPin className="w-3.5 h-3.5 text-[#128F92]" />
                   <span>{brand.origin}</span>
                 </span>
               )}
               {brand.founded && (
-                <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-white/15 backdrop-blur-md border border-white/20 text-[#DDF3F2] font-semibold">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/15 backdrop-blur-md border border-white/20 text-[#DDF3F2] font-semibold">
                   <Calendar className="w-3.5 h-3.5 text-[#128F92]" />
                   <span>Est. {brand.founded}</span>
                 </span>
               )}
             </div>
 
-            <h1 className="font-serif text-3xl sm:text-5xl lg:text-6xl font-bold text-white tracking-tight">
+            <h1 className="font-serif text-3xl sm:text-4xl lg:text-5xl font-bold text-white tracking-tight">
               {brand.name}
             </h1>
 
-            <p className="text-base sm:text-lg text-[#DDF3F2] font-serif italic">
+            <p className="text-sm sm:text-base text-[#DDF3F2] font-serif italic">
               &ldquo;{brand.tagline}&rdquo;
             </p>
 
@@ -99,19 +99,19 @@ export default async function BrandPage({ params }: BrandPageProps) {
       </div>
 
       {/* Brand Products Section */}
-      <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10">
+      <div className="max-w-[1380px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10">
         {/* Toolbar Header Card */}
-        <div className="bg-white rounded-[26px] p-5 sm:p-6 border border-[#D4E5E3] shadow-card flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8 sm:mb-10">
+        <div className="bg-white rounded-[20px] p-4 sm:p-5 border border-[#D4E5E3] shadow-card flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6 sm:mb-8">
           <div>
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#DDF3F2] text-[#128F92] text-xs font-bold uppercase tracking-wider mb-1.5">
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#DDF3F2] text-[#128F92] text-xs font-bold uppercase tracking-wider mb-1">
               <Sparkles className="w-3 h-3 text-[#128F92]" />
               Formulations by {brand.name}
             </span>
-            <h2 className="font-serif text-2xl sm:text-3xl text-[#0B4145] font-bold">
+            <h2 className="font-serif text-xl sm:text-2xl text-[#0B4145] font-bold">
               Signature Collection
             </h2>
           </div>
-          <span className="text-xs sm:text-sm text-[#687F8D] font-bold bg-[#F0F9F8] px-4 py-2 rounded-full border border-[#DDF3F2] shadow-xs self-start sm:self-auto">
+          <span className="text-xs sm:text-sm text-[#687F8D] font-bold bg-[#F0F9F8] px-3.5 py-1.5 rounded-full border border-[#DDF3F2] shadow-xs self-start sm:self-auto">
             {products.length} {products.length === 1 ? 'Creation' : 'Creations'} Available
           </span>
         </div>
@@ -125,29 +125,29 @@ export default async function BrandPage({ params }: BrandPageProps) {
       </div>
 
       {/* Other Brands Section - Distinct White Cards */}
-      <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 pt-12 border-t border-[#DDF3F2]">
-        <h3 className="font-serif text-2xl sm:text-3xl text-[#0B4145] font-bold mb-6">
+      <div className="max-w-[1380px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 pt-8 sm:pt-10 border-t border-[#DDF3F2]">
+        <h3 className="font-serif text-xl sm:text-2xl text-[#0B4145] font-bold mb-5">
           Explore Other Prestigious Brands
         </h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 sm:gap-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6">
           {BRANDS.filter((b) => b.slug !== brand.slug).slice(0, 3).map((other) => (
             <Link
               key={other.id}
               href={`/brands/${other.slug}`}
-              className="p-6 sm:p-7 rounded-[28px] bg-white border border-[#D4E5E3] hover:border-[#128F92] hover:shadow-hover transition-all flex flex-col justify-between group shadow-card"
+              className="p-4 sm:p-5 rounded-[20px] sm:rounded-[22px] bg-white border border-[#D4E5E3] hover:border-[#128F92] hover:shadow-hover transition-all flex flex-col justify-between group shadow-card"
             >
               <div>
                 <span className="text-xs uppercase font-extrabold tracking-wider text-[#128F92]">
                   {other.origin}
                 </span>
-                <h4 className="font-serif text-xl sm:text-2xl font-bold text-[#0B4145] group-hover:text-[#128F92] transition-colors mt-1.5">
+                <h4 className="font-serif text-lg sm:text-xl font-bold text-[#0B4145] group-hover:text-[#128F92] transition-colors mt-1">
                   {other.name}
                 </h4>
-                <p className="text-xs sm:text-sm text-[#687F8D] line-clamp-2 mt-2 leading-relaxed font-medium">
+                <p className="text-xs sm:text-sm text-[#687F8D] line-clamp-2 mt-1.5 leading-relaxed font-medium">
                   {other.tagline}
                 </p>
               </div>
-              <div className="mt-6 pt-4 border-t border-[#DDF3F2] flex items-center justify-between text-xs font-bold text-[#128F92]">
+              <div className="mt-4 pt-3.5 border-t border-[#DDF3F2] flex items-center justify-between text-xs font-bold text-[#128F92]">
                 <span>View Collection</span>
                 <span className="group-hover:translate-x-1.5 transition-transform">&rarr;</span>
               </div>

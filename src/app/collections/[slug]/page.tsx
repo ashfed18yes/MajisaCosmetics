@@ -38,10 +38,10 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
   const products = getProductsByCategory(category.slug);
 
   return (
-    <div className="space-y-12 sm:space-y-14 pb-24">
+    <div className="space-y-9 sm:space-y-12 pb-16 sm:pb-20">
       {/* Category Hero Banner as an Elevated Card */}
-      <div className="max-w-[1480px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 pt-2">
-        <div className="relative bg-[#0B4145] text-white rounded-[36px] overflow-hidden py-16 sm:py-22 px-8 sm:px-12 lg:px-16 shadow-[0_16px_40px_rgba(11,65,69,0.12)]">
+      <div className="max-w-[1380px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 pt-2">
+        <div className="relative bg-[#0B4145] text-white rounded-[26px] sm:rounded-[30px] overflow-hidden py-12 sm:py-16 px-6 sm:px-10 lg:px-12 shadow-[0_16px_40px_rgba(11,65,69,0.12)]">
           <div className="absolute inset-0 opacity-20">
             <Image
               src={category.image}
@@ -56,7 +56,7 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
 
           <div className="relative max-w-3xl">
             {/* Breadcrumbs */}
-            <nav className="inline-flex items-center gap-2 text-xs sm:text-sm text-[#DDF3F2] font-bold mb-6 tracking-wide bg-white/10 backdrop-blur-md px-4 py-1.5 rounded-full border border-white/15">
+            <nav className="inline-flex items-center gap-2 text-xs sm:text-sm text-[#DDF3F2] font-bold mb-4 tracking-wide bg-white/10 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-white/15">
               <Link href="/" className="hover:text-white transition-colors">
                 Home
               </Link>
@@ -68,15 +68,15 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
               <span className="text-white font-extrabold">{category.name}</span>
             </nav>
 
-            <span className="block text-xs uppercase tracking-widest text-[#BCE7E5] font-extrabold mb-2.5">
+            <span className="block text-xs uppercase tracking-widest text-[#BCE7E5] font-extrabold mb-2">
               {category.tagline}
             </span>
 
-            <h1 className="font-serif text-4xl sm:text-5xl lg:text-6xl font-bold text-white tracking-wide mb-3.5">
+            <h1 className="font-serif text-3xl sm:text-4xl lg:text-5xl font-bold text-white tracking-wide mb-3">
               {category.name}
             </h1>
 
-            <p className="text-base sm:text-lg text-[#DDF3F2] font-medium leading-relaxed max-w-2xl">
+            <p className="text-sm sm:text-base text-[#DDF3F2] font-medium leading-relaxed max-w-2xl">
               {category.description}
             </p>
           </div>
@@ -84,10 +84,10 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
       </div>
 
       {/* Product Grid Section */}
-      <div className="max-w-[1480px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10">
+      <div className="max-w-[1380px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10">
         {/* Toolbar Header Card */}
-        <div className="bg-white rounded-[26px] p-5 sm:p-6 border border-[#D4E5E3] shadow-card flex items-center justify-between mb-8 sm:mb-10">
-          <p className="text-sm font-bold text-[#687F8D]">
+        <div className="bg-white rounded-[20px] p-4 sm:p-5 border border-[#D4E5E3] shadow-card flex items-center justify-between mb-6 sm:mb-8">
+          <p className="text-xs sm:text-sm font-bold text-[#687F8D]">
             Showing <span className="text-[#0B4145] font-extrabold">{products.length}</span> formulations in this curation
           </p>
 
@@ -108,21 +108,21 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
       </div>
 
       {/* Sibling Category Quick Links - Distinct White Cards */}
-      <div className="max-w-[1480px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 pt-12 border-t border-[#DDF3F2]">
-        <h3 className="font-serif text-2xl sm:text-3xl font-bold text-[#0B4145] mb-6">
+      <div className="max-w-[1380px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 pt-8 sm:pt-10 border-t border-[#DDF3F2]">
+        <h3 className="font-serif text-xl sm:text-2xl font-bold text-[#0B4145] mb-5">
           Explore Other Categories
         </h3>
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-5">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3.5 sm:gap-4">
           {CATEGORIES.filter((c) => c.slug !== category.slug).slice(0, 5).map((sibling) => (
             <Link
               key={sibling.id}
               href={`/collections/${sibling.slug}`}
-              className="p-5 rounded-[26px] bg-white hover:bg-[#F0F9F8] border border-[#D4E5E3] hover:border-[#128F92] text-center transition-all group shadow-card hover:shadow-hover"
+              className="p-3.5 sm:p-4 rounded-[18px] sm:rounded-[20px] bg-white hover:bg-[#F0F9F8] border border-[#D4E5E3] hover:border-[#128F92] text-center transition-all group shadow-card hover:shadow-hover"
             >
-              <p className="font-serif text-lg font-bold text-[#0B4145] group-hover:text-[#128F92] transition-colors">
+              <p className="font-serif text-base sm:text-lg font-bold text-[#0B4145] group-hover:text-[#128F92] transition-colors">
                 {sibling.name}
               </p>
-              <p className="text-xs text-[#687F8D] line-clamp-1 mt-1 font-medium">
+              <p className="text-[11px] sm:text-xs text-[#687F8D] line-clamp-1 mt-1 font-medium">
                 {sibling.tagline}
               </p>
             </Link>

@@ -30,11 +30,11 @@ export default function Navbar() {
   return (
     <>
       {/* Floating, Detached Pill Navbar with High Contrast White Surface & Elevated Shadow */}
-      <header className="sticky top-3.5 sm:top-5 z-40 px-4 sm:px-6 lg:px-8 xl:px-10 max-w-[1440px] mx-auto w-full pointer-events-none">
-        <div className="pointer-events-auto bg-white border border-[#D4E5E3] rounded-full shadow-[0_14px_38px_rgba(11,65,69,0.12),0_4px_12px_rgba(11,65,69,0.04)] px-5 sm:px-7 py-2.5 sm:py-3 flex items-center justify-between transition-all">
+      <header className="sticky top-2.5 sm:top-3.5 z-40 px-3.5 sm:px-6 lg:px-8 xl:px-10 max-w-[1380px] mx-auto w-full pointer-events-none">
+        <div className="pointer-events-auto bg-white border border-[#D4E5E3] rounded-full shadow-[0_12px_32px_rgba(11,65,69,0.10),0_2px_8px_rgba(11,65,69,0.04)] px-4 sm:px-6 py-2 sm:py-2.5 flex items-center justify-between transition-all">
           
           {/* Left: Brand Wordmark with Emblem */}
-          <div className="flex items-center gap-2.5 sm:gap-3.5 shrink-0">
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             {/* Mobile Menu Trigger */}
             <button
               type="button"
@@ -45,15 +45,15 @@ export default function Navbar() {
               {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
 
-            <Link href="/" className="flex items-center gap-2.5 sm:gap-3 group">
-              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-[#DDF3F2] flex items-center justify-center text-[#128F92] font-serif text-lg sm:text-xl font-bold group-hover:bg-[#128F92] group-hover:text-white transition-colors shrink-0 shadow-sm">
+            <Link href="/" className="flex items-center gap-2 sm:gap-2.5 group">
+              <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-[#DDF3F2] flex items-center justify-center text-[#128F92] font-serif text-base sm:text-lg font-bold group-hover:bg-[#128F92] group-hover:text-white transition-colors shrink-0 shadow-sm">
                 M
               </div>
               <div className="flex flex-col">
-                <span className="font-serif text-xl sm:text-2xl font-bold tracking-[0.14em] text-[#0B4145] uppercase leading-tight group-hover:text-[#128F92] transition-colors">
+                <span className="font-serif text-lg sm:text-xl font-bold tracking-[0.14em] text-[#0B4145] uppercase leading-tight group-hover:text-[#128F92] transition-colors">
                   Majisa
                 </span>
-                <span className="text-[10px] uppercase tracking-[0.24em] text-[#687F8D] font-bold -mt-0.5">
+                <span className="text-[9px] uppercase tracking-[0.24em] text-[#687F8D] font-bold -mt-0.5">
                   Cosmetics
                 </span>
               </div>
@@ -61,7 +61,7 @@ export default function Navbar() {
           </div>
 
           {/* Center: Desktop Navigation Links with Calibrated Spacing */}
-          <nav className="hidden lg:flex items-center gap-6 lg:gap-7 xl:gap-8 mx-4 xl:mx-6">
+          <nav className="hidden lg:flex items-center gap-5 lg:gap-6 xl:gap-7 mx-3 xl:mx-5">
             <Link
               href="/"
               className={`text-sm font-bold transition-colors py-1 ${
@@ -104,14 +104,14 @@ export default function Navbar() {
 
               {/* Dropdown Menu */}
               {isCatDropdownOpen && (
-                <div className="absolute top-full -left-4 w-60 pt-3 z-50 animate-in fade-in zoom-in-95 duration-150">
-                  <div className="bg-white border border-[#D4E5E3] rounded-[24px] shadow-[0_16px_36px_rgba(11,65,69,0.12)] py-3 px-2">
+                <div className="absolute top-full -left-4 w-56 pt-2.5 z-50 animate-in fade-in zoom-in-95 duration-150">
+                  <div className="bg-white border border-[#D4E5E3] rounded-[20px] shadow-[0_14px_32px_rgba(11,65,69,0.12)] py-2.5 px-2">
                     {CATEGORIES.map((cat) => (
                       <Link
                         key={cat.id}
                         href={`/collections/${cat.slug}`}
                         onClick={() => setIsCatDropdownOpen(false)}
-                        className="block px-4 py-2.5 text-sm text-[#102F32] hover:bg-[#F0F9F8] hover:text-[#128F92] rounded-xl transition-colors font-bold"
+                        className="block px-3.5 py-2 text-xs sm:text-sm text-[#102F32] hover:bg-[#F0F9F8] hover:text-[#128F92] rounded-xl transition-colors font-bold"
                       >
                         {cat.name}
                       </Link>
@@ -145,12 +145,12 @@ export default function Navbar() {
           </nav>
 
           {/* Right: Actions Group with Clear Separation */}
-          <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">
+          <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
             {/* Search Icon */}
             <button
               type="button"
               onClick={() => setIsSearchOpen(true)}
-              className="w-10 h-10 flex items-center justify-center text-[#0B4145] hover:text-[#128F92] rounded-full bg-[#F0F9F8] hover:bg-[#DDF3F2] transition-colors border border-[#DDF3F2]/60"
+              className="w-8.5 h-8.5 sm:w-9 sm:h-9 flex items-center justify-center text-[#0B4145] hover:text-[#128F92] rounded-full bg-[#F0F9F8] hover:bg-[#DDF3F2] transition-colors border border-[#DDF3F2]/60"
               aria-label="Search catalog"
             >
               <Search className="w-4 h-4 stroke-[2.2]" />
@@ -159,26 +159,26 @@ export default function Navbar() {
             {/* Account Icon */}
             <Link
               href="/account"
-              className="w-10 h-10 flex items-center justify-center text-[#0B4145] hover:text-[#128F92] rounded-full bg-[#F0F9F8] hover:bg-[#DDF3F2] transition-colors border border-[#DDF3F2]/60"
+              className="w-8.5 h-8.5 sm:w-9 sm:h-9 flex items-center justify-center text-[#0B4145] hover:text-[#128F92] rounded-full bg-[#F0F9F8] hover:bg-[#DDF3F2] transition-colors border border-[#DDF3F2]/60"
               aria-label="My Account"
             >
               <User className="w-4 h-4 stroke-[2.2]" />
             </Link>
 
             {/* Subtle Divider before Bag CTA */}
-            <div className="h-6 w-px bg-[#DDF3F2] hidden sm:block mx-0.5" />
+            <div className="h-5 w-px bg-[#DDF3F2] hidden sm:block mx-0.5" />
 
             {/* Distinct Rounded Teal Pill Bag Button */}
             <button
               type="button"
               onClick={() => setIsCartOpen(true)}
-              className="flex items-center gap-2 px-4.5 sm:px-5 py-2.5 rounded-full bg-[#128F92] hover:bg-[#0B4145] text-white text-xs sm:text-sm font-bold shadow-cta transition-all hover:scale-102"
+              className="flex items-center gap-1.5 sm:gap-2 px-3.5 sm:px-4 py-2 rounded-full bg-[#128F92] hover:bg-[#0B4145] text-white text-xs sm:text-sm font-bold shadow-cta transition-all hover:scale-102"
               aria-label={`Shopping bag with ${totalItems} items`}
             >
               <ShoppingBag className="w-4 h-4 stroke-[2.2]" />
               <span className="hidden sm:inline">Bag</span>
               {totalItems > 0 && (
-                <span className="bg-white text-[#0B4145] text-xs font-extrabold px-2.5 py-0.5 rounded-full shadow-sm">
+                <span className="bg-white text-[#0B4145] text-[11px] sm:text-xs font-extrabold px-2 py-0.5 rounded-full shadow-sm">
                   {totalItems}
                 </span>
               )}

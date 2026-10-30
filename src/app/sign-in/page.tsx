@@ -32,15 +32,15 @@ export default function SignInPage() {
   };
 
   return (
-    <div className="min-h-[75vh] flex items-center justify-center px-4 sm:px-6 lg:px-8 py-16">
-      <div className="w-full max-w-md bg-white rounded-[32px] p-8 sm:p-10 border border-[#D4E5E3] shadow-card space-y-6">
+    <div className="min-h-[75vh] flex items-center justify-center px-4 sm:px-6 lg:px-8 py-10 sm:py-12">
+      <div className="w-full max-w-md bg-white rounded-[22px] sm:rounded-[24px] p-6 sm:p-8 border border-[#D4E5E3] shadow-card space-y-5">
         {/* Header */}
-        <div className="text-center space-y-2">
-          <span className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-[#DDF3F2] text-[#128F92] text-xs uppercase tracking-wider font-bold">
+        <div className="text-center space-y-1.5">
+          <span className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-[#DDF3F2] text-[#128F92] text-xs uppercase tracking-wider font-bold">
             <Sparkles className="w-3.5 h-3.5 text-[#128F92]" />
             <span>Member Access</span>
           </span>
-          <h1 className="font-serif text-3xl sm:text-4xl text-[#0B4145] font-bold">
+          <h1 className="font-serif text-2xl sm:text-3xl text-[#0B4145] font-bold">
             Welcome Back
           </h1>
           <p className="text-xs sm:text-sm text-[#687F8D]">
@@ -50,15 +50,15 @@ export default function SignInPage() {
 
         {/* Error Alert */}
         {error && (
-          <div className="p-3.5 rounded-2xl bg-red-50 border border-red-200 text-xs sm:text-sm text-red-700 animate-in fade-in">
+          <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-xs sm:text-sm text-red-700 animate-in fade-in">
             {error}
           </div>
         )}
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-3.5">
           <div>
-            <label className="block text-xs uppercase tracking-wider font-bold text-[#102F32] mb-1.5">
+            <label className="block text-xs uppercase tracking-wider font-bold text-[#102F32] mb-1">
               Email Address
             </label>
             <div className="relative">
@@ -69,13 +69,13 @@ export default function SignInPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="name@domain.com"
-                className="w-full pl-10 pr-4 py-3 bg-[#F0F9F8] border border-[#DDF3F2] rounded-2xl text-sm text-[#102F32] placeholder-[#687F8D]/60 focus:outline-none focus:border-[#128F92] transition-colors font-medium"
+                className="w-full pl-10 pr-4 py-2.5 bg-[#F0F9F8] border border-[#DDF3F2] rounded-xl text-sm text-[#102F32] placeholder-[#687F8D]/60 focus:outline-none focus:border-[#128F92] transition-colors font-medium"
               />
             </div>
           </div>
 
           <div>
-            <div className="flex justify-between items-center mb-1.5">
+            <div className="flex justify-between items-center mb-1">
               <label className="text-xs uppercase tracking-wider font-bold text-[#102F32]">
                 Password
               </label>
@@ -95,7 +95,7 @@ export default function SignInPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;"
-                className="w-full pl-10 pr-10 py-3 bg-[#F0F9F8] border border-[#DDF3F2] rounded-2xl text-sm text-[#102F32] placeholder-[#687F8D]/60 focus:outline-none focus:border-[#128F92] transition-colors font-medium"
+                className="w-full pl-10 pr-10 py-2.5 bg-[#F0F9F8] border border-[#DDF3F2] rounded-xl text-sm text-[#102F32] placeholder-[#687F8D]/60 focus:outline-none focus:border-[#128F92] transition-colors font-medium"
               />
               <button
                 type="button"
@@ -111,7 +111,7 @@ export default function SignInPage() {
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full h-[54px] rounded-full bg-[#128F92] hover:bg-[#0B4145] text-white text-xs sm:text-sm uppercase tracking-widest font-bold transition-all shadow-cta flex items-center justify-center gap-2 group disabled:opacity-60"
+            className="w-full h-[46px] sm:h-[48px] rounded-full bg-[#128F92] hover:bg-[#0B4145] text-white text-xs sm:text-sm uppercase tracking-widest font-bold transition-all shadow-cta flex items-center justify-center gap-2 group disabled:opacity-60"
           >
             {isLoading ? (
               <span>Authenticating...</span>

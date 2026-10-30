@@ -59,13 +59,13 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
   const popularSearches = ['Velvet Matte', 'Hyaluronic Elixir', 'SPF 50', 'Rose Oud', 'Lumière', 'Palette'];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center pt-20 sm:pt-28 px-4 bg-[#0B4145]/40 backdrop-blur-sm transition-opacity">
+    <div className="fixed inset-0 z-50 flex items-start justify-center pt-16 sm:pt-20 px-4 bg-[#0B4145]/40 backdrop-blur-sm transition-opacity">
       <div
-        className="w-full max-w-2xl bg-white rounded-[32px] shadow-modal border border-[#D4E5E3] overflow-hidden animate-in fade-in zoom-in-95 duration-200"
+        className="w-full max-w-xl bg-white rounded-[22px] shadow-modal border border-[#D4E5E3] overflow-hidden animate-in fade-in zoom-in-95 duration-200"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Search Input Bar */}
-        <div className="flex items-center px-6 py-4.5 border-b border-[#DDF3F2] bg-white">
+        <div className="flex items-center px-4.5 py-3 border-b border-[#DDF3F2] bg-white">
           <Search className="w-5 h-5 text-[#128F92] mr-3.5 shrink-0" />
           <input
             ref={inputRef}

@@ -33,11 +33,11 @@ export default function ProductCard({ product, priority = false }: ProductCardPr
   };
 
   return (
-    <div className="group relative flex flex-col bg-white rounded-[16px] sm:rounded-[20px] md:rounded-[22px] p-2.5 sm:p-3.5 md:p-4 shadow-card hover:shadow-hover border border-[#D4E5E3] hover:border-[#128F92]/40 transition-all duration-300 h-full">
+    <div className="group relative flex flex-col bg-white rounded-[16px] sm:rounded-[18px] md:rounded-[20px] p-2.5 sm:p-3 md:p-3.5 shadow-card hover:shadow-hover border border-[#D4E5E3] hover:border-[#128F92]/40 transition-all duration-300 h-full">
       {/* 1. Large Product Image: Completely Unobstructed, Natural Aspect Ratio */}
       <Link
         href={`/products/${product.slug}`}
-        className="relative block aspect-[4/5] w-full overflow-hidden rounded-[12px] sm:rounded-[14px] md:rounded-[16px] bg-[#F0F9F8] p-1.5 sm:p-2.5 md:p-3 shrink-0"
+        className="relative block aspect-[4/5] w-full overflow-hidden rounded-[12px] sm:rounded-[14px] bg-[#F0F9F8] p-1.5 sm:p-2 md:p-2.5 shrink-0"
       >
         <Image
           src={product.images[0]}
@@ -50,14 +50,14 @@ export default function ProductCard({ product, priority = false }: ProductCardPr
 
         {/* Minimal Rounded Badge (Bestseller / New) */}
         {product.isBestseller ? (
-          <div className="absolute top-1.5 left-1.5 sm:top-2.5 sm:left-2.5 z-10">
-            <span className="bg-[#0B4145] text-white text-[9px] sm:text-[10px] md:text-[11px] font-bold tracking-wider uppercase px-2 py-0.5 sm:px-2.5 sm:py-0.5 md:px-3 md:py-1 rounded-full shadow-sm">
+          <div className="absolute top-1.5 left-1.5 sm:top-2 sm:left-2 z-10">
+            <span className="bg-[#0B4145] text-white text-[9px] sm:text-[10px] md:text-[11px] font-bold tracking-wider uppercase px-2 py-0.5 sm:px-2.5 sm:py-0.5 md:px-2.5 md:py-0.5 rounded-full shadow-sm">
               Bestseller
             </span>
           </div>
         ) : product.isNew ? (
-          <div className="absolute top-1.5 left-1.5 sm:top-2.5 sm:left-2.5 z-10">
-            <span className="bg-[#DDF3F2] text-[#0B4145] text-[9px] sm:text-[10px] md:text-[11px] font-bold tracking-wider uppercase px-2 py-0.5 sm:px-2.5 sm:py-0.5 md:px-3 md:py-1 rounded-full border border-[#BCE7E5] shadow-sm">
+          <div className="absolute top-1.5 left-1.5 sm:top-2 sm:left-2 z-10">
+            <span className="bg-[#DDF3F2] text-[#0B4145] text-[9px] sm:text-[10px] md:text-[11px] font-bold tracking-wider uppercase px-2 py-0.5 sm:px-2.5 sm:py-0.5 md:px-2.5 md:py-0.5 rounded-full border border-[#BCE7E5] shadow-sm">
               New
             </span>
           </div>
@@ -139,7 +139,7 @@ export default function ProductCard({ product, priority = false }: ProductCardPr
             type="button"
             onClick={handleQuickAdd}
             disabled={!product.isAvailable || isAdding}
-            className="w-full h-[32px] sm:h-[36px] md:h-[40px] rounded-full bg-[#128F92] hover:bg-[#0B4145] text-white text-[10px] sm:text-[11px] md:text-xs uppercase tracking-normal sm:tracking-wider font-bold transition-all shadow-cta flex items-center justify-center gap-1 sm:gap-1.5 disabled:opacity-50"
+            className="w-full h-[32px] sm:h-[34px] md:h-[36px] rounded-full bg-[#128F92] hover:bg-[#0B4145] text-white text-[10px] sm:text-[11px] md:text-xs uppercase tracking-normal sm:tracking-wider font-bold transition-all shadow-cta flex items-center justify-center gap-1 sm:gap-1.5 disabled:opacity-50"
           >
             {isAdding ? (
               <>

@@ -21,15 +21,15 @@ export default function Footer() {
   return (
     <footer className="bg-[#0B4145] text-white border-t border-[#0E7A7D]/30">
       {/* Brand Value Pillars */}
-      <div className="border-b border-[#0E7A7D]/30 py-12 bg-[#083336]/60">
-        <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-center sm:text-left">
-            <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4">
-              <div className="w-12 h-12 rounded-full bg-[#128F92] flex items-center justify-center shrink-0 text-white shadow-cta">
-                <Shield className="w-6 h-6 stroke-[1.8]" />
+      <div className="border-b border-[#0E7A7D]/30 py-7 sm:py-8 bg-[#083336]/60">
+        <div className="max-w-[1380px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8 text-center sm:text-left">
+            <div className="flex flex-col sm:flex-row items-center sm:items-start gap-3.5">
+              <div className="w-10 h-10 rounded-full bg-[#128F92] flex items-center justify-center shrink-0 text-white shadow-cta">
+                <Shield className="w-5 h-5 stroke-[1.8]" />
               </div>
               <div>
-                <h4 className="font-serif text-lg text-white font-bold mb-1">
+                <h4 className="font-serif text-base text-white font-bold mb-0.5">
                   100% Genuine Formulations
                 </h4>
                 <p className="text-xs sm:text-sm text-[#DDF3F2] font-medium leading-relaxed">
@@ -38,12 +38,12 @@ export default function Footer() {
               </div>
             </div>
 
-            <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4">
-              <div className="w-12 h-12 rounded-full bg-[#128F92] flex items-center justify-center shrink-0 text-white shadow-cta">
-                <Sparkles className="w-6 h-6 stroke-[1.8]" />
+            <div className="flex flex-col sm:flex-row items-center sm:items-start gap-3.5">
+              <div className="w-10 h-10 rounded-full bg-[#128F92] flex items-center justify-center shrink-0 text-white shadow-cta">
+                <Sparkles className="w-5 h-5 stroke-[1.8]" />
               </div>
               <div>
-                <h4 className="font-serif text-lg text-white font-bold mb-1">
+                <h4 className="font-serif text-base text-white font-bold mb-0.5">
                   Complimentary Royal Delivery
                 </h4>
                 <p className="text-xs sm:text-sm text-[#DDF3F2] font-medium leading-relaxed">
@@ -52,12 +52,12 @@ export default function Footer() {
               </div>
             </div>
 
-            <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4">
-              <div className="w-12 h-12 rounded-full bg-[#128F92] flex items-center justify-center shrink-0 text-white shadow-cta">
-                <HeartHandshake className="w-6 h-6 stroke-[1.8]" />
+            <div className="flex flex-col sm:flex-row items-center sm:items-start gap-3.5">
+              <div className="w-10 h-10 rounded-full bg-[#128F92] flex items-center justify-center shrink-0 text-white shadow-cta">
+                <HeartHandshake className="w-5 h-5 stroke-[1.8]" />
               </div>
               <div>
-                <h4 className="font-serif text-lg text-white font-bold mb-1">
+                <h4 className="font-serif text-base text-white font-bold mb-0.5">
                   Beauty Concierge Support
                 </h4>
                 <p className="text-xs sm:text-sm text-[#DDF3F2] font-medium leading-relaxed">
@@ -77,37 +77,37 @@ export default function Footer() {
       </div>
 
       {/* Main Footer Links */}
-      <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 py-16">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-10">
+      <div className="max-w-[1380px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 py-10 sm:py-12">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-8 lg:gap-10">
           {/* Brand Intro & Newsletter */}
-          <div className="lg:col-span-2 space-y-5">
-            <Link href="/" className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-[#128F92] flex items-center justify-center text-white font-serif text-xl font-bold shadow-cta">
+          <div className="lg:col-span-2 space-y-4">
+            <Link href="/" className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-full bg-[#128F92] flex items-center justify-center text-white font-serif text-lg font-bold shadow-cta">
                 M
               </div>
               <div className="flex flex-col">
-                <span className="font-serif text-2xl font-bold tracking-[0.14em] text-white uppercase block leading-tight">
+                <span className="font-serif text-xl font-bold tracking-[0.14em] text-white uppercase block leading-tight">
                   Majisa
                 </span>
-                <span className="text-[10px] uppercase tracking-[0.24em] text-[#DDF3F2] font-semibold">
+                <span className="text-[9px] uppercase tracking-[0.24em] text-[#DDF3F2] font-semibold">
                   Cosmetics
                 </span>
               </div>
             </Link>
-            <p className="text-sm text-[#DDF3F2] leading-relaxed max-w-sm font-medium">
+            <p className="text-xs sm:text-sm text-[#DDF3F2] leading-relaxed max-w-sm font-medium">
               Majisa Cosmetics marries timeless regal botanical traditions with modern French formulation science. Designed for lovers of pure, clean elegance.
             </p>
 
             {/* Newsletter */}
-            <div className="pt-2">
-              <p className="text-xs uppercase tracking-wider font-bold text-white mb-2">
+            <div className="pt-1.5">
+              <p className="text-xs uppercase tracking-wider font-bold text-white mb-1.5">
                 Join the Majisa Circle
               </p>
-              <p className="text-xs text-[#DDF3F2] mb-3 font-medium">
+              <p className="text-xs text-[#DDF3F2] mb-2.5 font-medium">
                 Receive confidential launches, shade advice, and an exclusive 10% welcome privilege.
               </p>
               {isSubscribed ? (
-                <div className="flex items-center gap-2 text-xs text-white bg-[#0E7A7D] p-3 rounded-2xl border border-[#128F92]">
+                <div className="flex items-center gap-2 text-xs text-white bg-[#0E7A7D] p-2.5 rounded-xl border border-[#128F92]">
                   <CheckCircle2 className="w-4 h-4 text-[#DDF3F2] shrink-0" />
                   <span>Welcome to the Majisa Circle. Check your inbox soon.</span>
                 </div>
@@ -119,14 +119,14 @@ export default function Footer() {
                     value={newsletterEmail}
                     onChange={(e) => setNewsletterEmail(e.target.value)}
                     placeholder="Enter your email address"
-                    className="flex-1 px-4 py-3 bg-[#083336] border border-[#0E7A7D] rounded-l-full text-sm text-white placeholder-[#DDF3F2]/60 focus:outline-none focus:border-[#128F92]"
+                    className="flex-1 px-3.5 py-2.5 bg-[#083336] border border-[#0E7A7D] rounded-l-full text-xs sm:text-sm text-white placeholder-[#DDF3F2]/60 focus:outline-none focus:border-[#128F92]"
                   />
                   <button
                     type="submit"
-                    className="px-6 py-3 bg-[#128F92] hover:bg-[#0E7A7D] text-white font-bold text-xs sm:text-sm rounded-r-full transition-colors flex items-center gap-1.5 shadow-cta"
+                    className="px-5 py-2.5 bg-[#128F92] hover:bg-[#0E7A7D] text-white font-bold text-xs rounded-r-full transition-colors flex items-center gap-1 shadow-cta"
                   >
                     <span>Subscribe</span>
-                    <ArrowRight className="w-4 h-4" />
+                    <ArrowRight className="w-3.5 h-3.5" />
                   </button>
                 </form>
               )}
@@ -277,7 +277,7 @@ export default function Footer() {
         </div>
 
         {/* Bottom Bar */}
-        <div className="mt-14 pt-8 border-t border-[#0E7A7D]/30 flex flex-col sm:flex-row items-center justify-between text-xs sm:text-sm text-[#DDF3F2] gap-4 font-medium">
+        <div className="mt-10 pt-6 border-t border-[#0E7A7D]/30 flex flex-col sm:flex-row items-center justify-between text-xs sm:text-sm text-[#DDF3F2] gap-4 font-medium">
           <p>&copy; {new Date().getFullYear()} {CONTACT_INFO.businessName}. All rights reserved.</p>
           <div className="flex items-center gap-6">
             <Link href="/contact" className="hover:text-white transition-colors">
