@@ -2,9 +2,12 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { Eye, EyeOff, Lock, Mail, User, ArrowRight, ShieldCheck, Sparkles } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { Eye, EyeOff, Lock, Mail, User, ArrowRight, ShieldCheck, Sparkles, CheckCircle2 } from 'lucide-react';
+import { createClient } from '@/lib/supabase/client';
 
 export default function SignUpPage() {
+  const router = useRouter();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -12,11 +15,13 @@ export default function SignUpPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [agreeTerms, setAgreeTerms] = useState(false);
   const [error, setError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setSuccessMessage('');
 
     if (!name.trim()) {
       setError('Please provide your full name.');
@@ -40,10 +45,59 @@ export default function SignUpPage() {
     }
 
     setIsLoading(true);
-    setTimeout(() => {
+
+    try {
+      const supabase = createClient();
+      const origin = typeof window !== 'undefined' ? window.location.origin : '';
+      const emailRedirectTo = `${origin}/auth/callback?next=/account`;
+
+      const { data, error: signUpError } = await supabase.auth.signUp({
+        email: email.trim(),
+        password,
+        options: {
+          data: {
+            full_name: name.trim(),
+            name: name.trim(),
+          },
+          emailRedirectTo,
+        },
+      });
+
+      if (signUpError) {
+        setError(signUpError.message);
+        setIsLoading(false);
+        return;
+      }
+
+      // Check if user already exists (Supabase returns empty identities array when email confirmation & enumeration protection are on)
+      if (data.user && data.user.identities && data.user.identities.length === 0) {
+        setError('An account with this email address already exists. Please sign in instead.');
+        setIsLoading(false);
+        return;
+      }
+
+      // If email confirmation is disabled in Supabase, a session is created immediately
+      if (data.session) {
+        router.push('/account');
+        router.refresh();
+        return;
+      }
+
+      // Email confirmation required flow
+      setSuccessMessage(
+        'Your royal account has been created! Please check your email inbox to verify your account before signing in.'
+      );
+      setName('');
+      setEmail('');
+      setPassword('');
+      setConfirmPassword('');
+      setAgreeTerms(false);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'An unexpected error occurred during registration.';
+      setError(message);
+    } finally {
       setIsLoading(false);
-      alert('Registration form verified. Supabase Auth will be connected in the upcoming phase.');
-    }, 900);
+    }
   };
 
   return (
@@ -62,6 +116,14 @@ export default function SignUpPage() {
             Enjoy personalized shade consultations, order tracking, and 10% off your initial order.
           </p>
         </div>
+
+        {/* Success Alert */}
+        {successMessage && (
+          <div className="p-3.5 rounded-xl bg-[#DDF3F2] border border-[#128F92]/30 text-xs sm:text-sm text-[#0B4145] font-semibold flex items-start gap-2.5 animate-in fade-in">
+            <CheckCircle2 className="w-4 h-4 text-[#128F92] shrink-0 mt-0.5" />
+            <span>{successMessage}</span>
+          </div>
+        )}
 
         {/* Error Alert */}
         {error && (
@@ -117,7 +179,7 @@ export default function SignUpPage() {
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;"
+                placeholder="••••••••"
                 className="w-full pl-10 pr-10 py-2.5 bg-[#F0F9F8] border border-[#DDF3F2] rounded-xl text-sm text-[#102F32] placeholder-[#687F8D]/60 focus:outline-none focus:border-[#128F92] transition-colors font-medium"
               />
               <button
@@ -142,7 +204,7 @@ export default function SignUpPage() {
                 required
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;"
+                placeholder="••••••••"
                 className="w-full pl-10 pr-10 py-2.5 bg-[#F0F9F8] border border-[#DDF3F2] rounded-xl text-sm text-[#102F32] placeholder-[#687F8D]/60 focus:outline-none focus:border-[#128F92] transition-colors font-medium"
               />
             </div>

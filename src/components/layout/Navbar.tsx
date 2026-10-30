@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
@@ -14,6 +14,8 @@ import {
 import SearchModal from '../search/SearchModal';
 import { useCart } from '@/context/CartContext';
 import { CATEGORIES } from '@/data/mockData';
+import { createClient } from '@/lib/supabase/client';
+import type { User as SupabaseUser } from '@supabase/supabase-js';
 
 export default function Navbar() {
   const pathname = usePathname();
@@ -21,6 +23,29 @@ export default function Navbar() {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isCatDropdownOpen, setIsCatDropdownOpen] = useState(false);
+  const [currentUser, setCurrentUser] = useState<SupabaseUser | null>(null);
+
+  useEffect(() => {
+    try {
+      const supabase = createClient();
+
+      supabase.auth.getUser().then(({ data }) => {
+        setCurrentUser(data.user);
+      });
+
+      const {
+        data: { subscription },
+      } = supabase.auth.onAuthStateChange((_event, session) => {
+        setCurrentUser(session?.user ?? null);
+      });
+
+      return () => {
+        subscription.unsubscribe();
+      };
+    } catch {
+      // Gracefully handle unconfigured credentials during initial load
+    }
+  }, []);
 
   const isActive = (href: string) => {
     if (href === '/') return pathname === '/';
@@ -158,11 +183,30 @@ export default function Navbar() {
 
             {/* Account Icon */}
             <Link
-              href="/account"
-              className="w-8.5 h-8.5 sm:w-9 sm:h-9 flex items-center justify-center text-[#0B4145] hover:text-[#128F92] rounded-full bg-[#F0F9F8] hover:bg-[#DDF3F2] transition-colors border border-[#DDF3F2]/60"
-              aria-label="My Account"
+              href={currentUser ? '/account' : '/sign-in'}
+              className={`relative w-8.5 h-8.5 sm:w-9 sm:h-9 flex items-center justify-center rounded-full transition-colors border ${
+                currentUser
+                  ? 'bg-[#DDF3F2] text-[#0B4145] border-[#128F92]/40 shadow-xs'
+                  : 'bg-[#F0F9F8] text-[#0B4145] hover:text-[#128F92] hover:bg-[#DDF3F2] border-[#DDF3F2]/60'
+              }`}
+              aria-label={currentUser ? 'My Account' : 'Member Sign In'}
+              title={currentUser ? `Signed in as ${currentUser.email}` : 'Sign In'}
             >
-              <User className="w-4 h-4 stroke-[2.2]" />
+              {currentUser ? (
+                <span className="font-serif font-bold text-xs sm:text-sm text-[#0B4145]">
+                  {(
+                    currentUser.user_metadata?.full_name ||
+                    currentUser.user_metadata?.name ||
+                    currentUser.email ||
+                    'M'
+                  )[0].toUpperCase()}
+                </span>
+              ) : (
+                <User className="w-4 h-4 stroke-[2.2]" />
+              )}
+              {currentUser && (
+                <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-[#128F92] rounded-full border border-white" />
+              )}
             </Link>
 
             {/* Subtle Divider before Bag CTA */}
@@ -274,11 +318,12 @@ export default function Navbar() {
                   Contact Concierge
                 </Link>
                 <Link
-                  href="/account"
+                  href={currentUser ? '/account' : '/sign-in'}
                   onClick={() => setIsMobileMenuOpen(false)}
-                  className="w-full py-3.5 px-4 rounded-full bg-[#F0F9F8] border border-[#DDF3F2] text-[#0B4145] text-center block text-sm font-bold"
+                  className="w-full py-3.5 px-4 rounded-full bg-[#F0F9F8] border border-[#DDF3F2] text-[#0B4145] text-center block text-sm font-bold flex items-center justify-center gap-2"
                 >
-                  My Account
+                  <User className="w-4 h-4 text-[#128F92]" />
+                  <span>{currentUser ? 'My Account' : 'Member Access / Sign In'}</span>
                 </Link>
                 <button
                   type="button"
