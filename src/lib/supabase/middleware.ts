@@ -56,6 +56,15 @@ export async function updateSession(request: NextRequest) {
     user = null;
   }
 
+  // Fallback handler: If an auth code arrives at root or any non-callback path,
+  // forward it to /auth/callback so the PKCE code exchange executes properly.
+  const authCode = request.nextUrl.searchParams.get('code');
+  if (authCode && !request.nextUrl.pathname.startsWith('/auth/callback')) {
+    const callbackUrl = request.nextUrl.clone();
+    callbackUrl.pathname = '/auth/callback';
+    return NextResponse.redirect(callbackUrl);
+  }
+
   // Route protection for private customer routes (e.g. /account)
   const isAccountRoute = request.nextUrl.pathname.startsWith('/account');
 

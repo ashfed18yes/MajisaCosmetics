@@ -40,12 +40,17 @@ export async function GET(request: Request) {
   // Compute origin, taking reverse proxy or load balancer headers into account (e.g. Vercel)
   const forwardedHost = request.headers.get('x-forwarded-host');
   const forwardedProto = request.headers.get('x-forwarded-proto') || 'https';
-  const isLocalEnv = process.env.NODE_ENV === 'development';
+  const host = forwardedHost ? forwardedHost.split(',')[0].trim() : null;
 
-  const baseOrigin = isLocalEnv
+  // Local development check (preserves localhost in development and dev server)
+  const isLocalhost =
+    requestUrl.hostname === 'localhost' ||
+    requestUrl.hostname === '127.0.0.1';
+
+  const baseOrigin = isLocalhost
     ? requestUrl.origin
-    : forwardedHost
-    ? `${forwardedProto}://${forwardedHost}`
+    : host
+    ? `${forwardedProto}://${host}`
     : requestUrl.origin;
 
   if (code) {
