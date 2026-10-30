@@ -64,7 +64,7 @@ export default function AccountPage() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-16 space-y-12">
+    <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 py-10 sm:py-16 space-y-12">
       {/* 1. Distinct White Profile Summary Card with Generous Padding & Soft Elevation */}
       <div className="bg-white rounded-[32px] p-8 sm:p-10 border border-[#D4E5E3] shadow-[0_14px_35px_rgba(11,65,69,0.08)] flex flex-col sm:flex-row items-center sm:items-start justify-between gap-8">
         <div className="flex flex-col sm:flex-row items-center gap-6 text-center sm:text-left">

@@ -40,7 +40,7 @@ export default async function BrandPage({ params }: BrandPageProps) {
   return (
     <div className="space-y-12 sm:space-y-14 pb-24">
       {/* Brand Hero Banner as an Elevated Card */}
-      <div className="max-w-[1520px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-12 pt-2">
+      <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 pt-2">
         <div className="relative bg-[#0B4145] text-white rounded-[36px] overflow-hidden py-16 sm:py-22 px-8 sm:px-12 lg:px-16 shadow-[0_16px_40px_rgba(11,65,69,0.12)]">
           <div className="absolute inset-0 opacity-20">
             <Image
@@ -99,7 +99,7 @@ export default async function BrandPage({ params }: BrandPageProps) {
       </div>
 
       {/* Brand Products Section */}
-      <div className="max-w-[1520px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-12">
+      <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10">
         {/* Toolbar Header Card */}
         <div className="bg-white rounded-[26px] p-5 sm:p-6 border border-[#D4E5E3] shadow-card flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8 sm:mb-10">
           <div>
@@ -118,14 +118,14 @@ export default async function BrandPage({ params }: BrandPageProps) {
 
         <ProductGrid
           products={products}
-          columns="grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 2xl:grid-cols-4"
+          columns="grid-cols-1 min-[440px]:grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
           emptyTitle={`No products currently available for ${brand.name}`}
           emptyDescription="This brand atelier is currently formulating new seasonal offerings."
         />
       </div>
 
       {/* Other Brands Section - Distinct White Cards */}
-      <div className="max-w-[1520px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-12 pt-12 border-t border-[#DDF3F2]">
+      <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 pt-12 border-t border-[#DDF3F2]">
         <h3 className="font-serif text-2xl sm:text-3xl text-[#0B4145] font-bold mb-6">
           Explore Other Prestigious Brands
         </h3>

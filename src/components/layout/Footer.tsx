@@ -22,7 +22,7 @@ export default function Footer() {
     <footer className="bg-[#0B4145] text-white border-t border-[#0E7A7D]/30">
       {/* Brand Value Pillars */}
       <div className="border-b border-[#0E7A7D]/30 py-12 bg-[#083336]/60">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-center sm:text-left">
             <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4">
               <div className="w-12 h-12 rounded-full bg-[#128F92] flex items-center justify-center shrink-0 text-white shadow-cta">
@@ -77,7 +77,7 @@ export default function Footer() {
       </div>
 
       {/* Main Footer Links */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+      <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 py-16">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-10">
           {/* Brand Intro & Newsletter */}
           <div className="lg:col-span-2 space-y-5">

@@ -82,7 +82,7 @@ function CollectionsContent() {
     sortBy !== 'featured';
 
   return (
-    <div className="max-w-[1520px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-12 py-10 sm:py-16 space-y-10 sm:space-y-12">
+    <div className="max-w-[1480px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 py-10 sm:py-16 space-y-10 sm:space-y-12">
       {/* 1. Spacious Page Header */}
       <div className="text-center max-w-3xl mx-auto mb-10 sm:mb-12">
         <span className="text-xs uppercase tracking-widest text-[#128F92] font-extrabold block mb-2">
@@ -343,7 +343,7 @@ function CollectionsContent() {
           <ProductGrid
             products={displayedProducts}
             onResetFilters={hasActiveFilters ? handleResetFilters : undefined}
-            columns="grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 2xl:grid-cols-4"
+            columns="grid-cols-1 min-[440px]:grid-cols-2 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 2xl:grid-cols-4"
           />
 
           {hasMore && (

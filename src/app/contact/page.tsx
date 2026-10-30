@@ -45,7 +45,7 @@ export default function ContactPage() {
   };
 
   return (
-    <div className="max-w-[1520px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-12 py-12 sm:py-16 space-y-12 sm:space-y-14">
+    <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 py-12 sm:py-16 space-y-12 sm:space-y-14">
       {/* Header */}
       <div className="text-center max-w-2xl mx-auto">
         <span className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-[#DDF3F2] text-[#128F92] border border-[#128F92]/20 text-xs uppercase tracking-wider font-extrabold mb-3 shadow-xs">

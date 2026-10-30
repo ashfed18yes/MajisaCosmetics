@@ -30,23 +30,23 @@ export default function Navbar() {
   return (
     <>
       {/* Floating, Detached Pill Navbar with High Contrast White Surface & Elevated Shadow */}
-      <header className="sticky top-6 sm:top-8 z-40 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full pointer-events-none">
-        <div className="pointer-events-auto bg-white border border-[#D4E5E3] rounded-full shadow-[0_14px_38px_rgba(11,65,69,0.12),0_4px_12px_rgba(11,65,69,0.04)] px-5 sm:px-8 py-3.5 sm:py-4 flex items-center justify-between transition-all">
+      <header className="sticky top-3.5 sm:top-5 z-40 px-4 sm:px-6 lg:px-8 xl:px-10 max-w-[1440px] mx-auto w-full pointer-events-none">
+        <div className="pointer-events-auto bg-white border border-[#D4E5E3] rounded-full shadow-[0_14px_38px_rgba(11,65,69,0.12),0_4px_12px_rgba(11,65,69,0.04)] px-5 sm:px-7 py-2.5 sm:py-3 flex items-center justify-between transition-all">
           
           {/* Left: Brand Wordmark with Emblem */}
-          <div className="flex items-center gap-3 sm:gap-4 shrink-0">
+          <div className="flex items-center gap-2.5 sm:gap-3.5 shrink-0">
             {/* Mobile Menu Trigger */}
             <button
               type="button"
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="lg:hidden p-2 text-[#0B4145] hover:text-[#128F92] rounded-full hover:bg-[#F0F9F8] focus:outline-none transition-colors"
+              className="lg:hidden p-1.5 text-[#0B4145] hover:text-[#128F92] rounded-full hover:bg-[#F0F9F8] focus:outline-none transition-colors"
               aria-label="Toggle navigation menu"
             >
               {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
 
-            <Link href="/" className="flex items-center gap-3 group">
-              <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-[#DDF3F2] flex items-center justify-center text-[#128F92] font-serif text-xl font-bold group-hover:bg-[#128F92] group-hover:text-white transition-colors shrink-0 shadow-sm">
+            <Link href="/" className="flex items-center gap-2.5 sm:gap-3 group">
+              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-[#DDF3F2] flex items-center justify-center text-[#128F92] font-serif text-lg sm:text-xl font-bold group-hover:bg-[#128F92] group-hover:text-white transition-colors shrink-0 shadow-sm">
                 M
               </div>
               <div className="flex flex-col">
@@ -60,11 +60,11 @@ export default function Navbar() {
             </Link>
           </div>
 
-          {/* Center: Desktop Navigation Links with Generous Spacing */}
-          <nav className="hidden lg:flex items-center gap-8 xl:gap-11 mx-6">
+          {/* Center: Desktop Navigation Links with Calibrated Spacing */}
+          <nav className="hidden lg:flex items-center gap-6 lg:gap-7 xl:gap-8 mx-4 xl:mx-6">
             <Link
               href="/"
-              className={`text-sm xl:text-base font-bold transition-colors py-1 ${
+              className={`text-sm font-bold transition-colors py-1 ${
                 isActive('/')
                   ? 'text-[#128F92] border-b-2 border-[#128F92]'
                   : 'text-[#102F32] hover:text-[#128F92]'
@@ -75,7 +75,7 @@ export default function Navbar() {
 
             <Link
               href="/collections"
-              className={`text-sm xl:text-base font-bold transition-colors py-1 ${
+              className={`text-sm font-bold transition-colors py-1 ${
                 isActive('/collections') && pathname === '/collections'
                   ? 'text-[#128F92] border-b-2 border-[#128F92]'
                   : 'text-[#102F32] hover:text-[#128F92]'
@@ -91,7 +91,7 @@ export default function Navbar() {
               onMouseLeave={() => setIsCatDropdownOpen(false)}
             >
               <button
-                className={`flex items-center gap-1.5 text-sm xl:text-base font-bold transition-colors py-1 ${
+                className={`flex items-center gap-1.5 text-sm font-bold transition-colors py-1 ${
                   pathname.startsWith('/collections/')
                     ? 'text-[#128F92]'
                     : 'text-[#102F32] hover:text-[#128F92]'
@@ -123,7 +123,7 @@ export default function Navbar() {
 
             <Link
               href="/brands"
-              className={`text-sm xl:text-base font-bold transition-colors py-1 ${
+              className={`text-sm font-bold transition-colors py-1 ${
                 isActive('/brands')
                   ? 'text-[#128F92] border-b-2 border-[#128F92]'
                   : 'text-[#102F32] hover:text-[#128F92]'
@@ -134,7 +134,7 @@ export default function Navbar() {
 
             <Link
               href="/contact"
-              className={`text-sm xl:text-base font-bold transition-colors py-1 ${
+              className={`text-sm font-bold transition-colors py-1 ${
                 isActive('/contact')
                   ? 'text-[#128F92] border-b-2 border-[#128F92]'
                   : 'text-[#102F32] hover:text-[#128F92]'
@@ -145,12 +145,12 @@ export default function Navbar() {
           </nav>
 
           {/* Right: Actions Group with Clear Separation */}
-          <div className="flex items-center gap-3 sm:gap-4 shrink-0">
+          <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">
             {/* Search Icon */}
             <button
               type="button"
               onClick={() => setIsSearchOpen(true)}
-              className="w-11 h-11 flex items-center justify-center text-[#0B4145] hover:text-[#128F92] rounded-full bg-[#F0F9F8] hover:bg-[#DDF3F2] transition-colors border border-[#DDF3F2]/60"
+              className="w-10 h-10 flex items-center justify-center text-[#0B4145] hover:text-[#128F92] rounded-full bg-[#F0F9F8] hover:bg-[#DDF3F2] transition-colors border border-[#DDF3F2]/60"
               aria-label="Search catalog"
             >
               <Search className="w-4 h-4 stroke-[2.2]" />
@@ -159,7 +159,7 @@ export default function Navbar() {
             {/* Account Icon */}
             <Link
               href="/account"
-              className="w-11 h-11 flex items-center justify-center text-[#0B4145] hover:text-[#128F92] rounded-full bg-[#F0F9F8] hover:bg-[#DDF3F2] transition-colors border border-[#DDF3F2]/60"
+              className="w-10 h-10 flex items-center justify-center text-[#0B4145] hover:text-[#128F92] rounded-full bg-[#F0F9F8] hover:bg-[#DDF3F2] transition-colors border border-[#DDF3F2]/60"
               aria-label="My Account"
             >
               <User className="w-4 h-4 stroke-[2.2]" />
@@ -172,7 +172,7 @@ export default function Navbar() {
             <button
               type="button"
               onClick={() => setIsCartOpen(true)}
-              className="flex items-center gap-2.5 px-5 sm:px-6 py-3 rounded-full bg-[#128F92] hover:bg-[#0B4145] text-white text-xs sm:text-sm font-bold shadow-cta transition-all hover:scale-102"
+              className="flex items-center gap-2 px-4.5 sm:px-5 py-2.5 rounded-full bg-[#128F92] hover:bg-[#0B4145] text-white text-xs sm:text-sm font-bold shadow-cta transition-all hover:scale-102"
               aria-label={`Shopping bag with ${totalItems} items`}
             >
               <ShoppingBag className="w-4 h-4 stroke-[2.2]" />

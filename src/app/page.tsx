@@ -17,46 +17,46 @@ export default function HomePage() {
   const displayedProducts = activeTab === 'bestsellers' ? bestsellers : newArrivals;
 
   return (
-    <div className="space-y-28 pb-32">
+    <div className="space-y-16 sm:space-y-20 lg:space-y-24 pb-20 sm:pb-28">
       {/* 1. Hero Section matching the Reference Aesthetic */}
-      <section className="pt-8 sm:pt-14 pb-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 items-center">
+      <section className="pt-6 sm:pt-10 lg:pt-12 pb-6 sm:pb-8">
+        <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-14 items-center">
             
             {/* Left Content Column */}
-            <div className="lg:col-span-7 space-y-8 text-center lg:text-left">
+            <div className="lg:col-span-7 space-y-6 sm:space-y-7 text-center lg:text-left">
               {/* Reference-Style Pill Badge */}
-              <div className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-white border border-[#D4E5E3] shadow-soft text-[#0B4145] text-xs sm:text-sm font-bold">
+              <div className="inline-flex items-center gap-2 px-4.5 py-2 rounded-full bg-white border border-[#D4E5E3] shadow-soft text-[#0B4145] text-xs sm:text-sm font-bold">
                 <Sparkles className="w-4 h-4 text-[#128F92]" />
                 <span>Premier Botanical Cosmetics &bull; Handcrafted in Jaipur</span>
               </div>
 
-              {/* Dominant Reference-Style Headline */}
-              <h1 className="font-serif text-5xl sm:text-6xl lg:text-7xl xl:text-8xl text-[#0B4145] leading-[1.06] font-bold tracking-tight">
+              {/* Dominant Calibrated Headline (72px max on large desktop) */}
+              <h1 className="font-serif text-4xl sm:text-5xl lg:text-6xl xl:text-7xl text-[#0B4145] leading-[1.08] font-bold tracking-tight">
                 Restoring Radiance. <br />
                 <span className="italic font-normal text-[#128F92]">Elevating Beauty.</span>
               </h1>
 
               {/* Supporting Copy */}
-              <p className="text-base sm:text-xl text-[#687F8D] leading-relaxed max-w-xl mx-auto lg:mx-0 font-medium">
+              <p className="text-base sm:text-lg text-[#687F8D] leading-relaxed max-w-xl mx-auto lg:mx-0 font-medium">
                 Experience royal heritage botanicals perfected through modern French cosmetic science. Discover opulent pigments, cellular serums, and weightless velvet textures.
               </p>
 
-              {/* Prominent Large Rounded Action Buttons (68px Height) */}
-              <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 pt-2">
+              {/* Calibrated Action Buttons (52–54px Height) */}
+              <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-3.5 pt-1">
                 {/* Primary Teal CTA */}
                 <Link
                   href="/collections"
-                  className="w-full sm:w-auto h-[68px] px-10 rounded-full bg-[#128F92] hover:bg-[#0B4145] text-white text-base sm:text-lg font-bold transition-all shadow-cta flex items-center justify-center gap-3 group hover:scale-102"
+                  className="w-full sm:w-auto h-[52px] sm:h-[54px] px-8 sm:px-9 rounded-full bg-[#128F92] hover:bg-[#0B4145] text-white text-sm sm:text-base font-bold transition-all shadow-cta flex items-center justify-center gap-2.5 group hover:scale-102"
                 >
                   <span>Shop Collections</span>
-                  <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                  <ArrowRight className="w-4.5 h-4.5 group-hover:translate-x-1 transition-transform" />
                 </Link>
 
                 {/* Secondary Pill CTA */}
                 <Link
                   href="/brands"
-                  className="w-full sm:w-auto h-[68px] px-10 rounded-full bg-white hover:bg-[#DDF3F2] text-[#0B4145] border border-[#D4E5E3] text-base sm:text-lg font-bold transition-all shadow-card flex items-center justify-center hover:scale-102"
+                  className="w-full sm:w-auto h-[52px] sm:h-[54px] px-8 sm:px-9 rounded-full bg-white hover:bg-[#DDF3F2] text-[#0B4145] border border-[#D4E5E3] text-sm sm:text-base font-bold transition-all shadow-card flex items-center justify-center hover:scale-102"
                 >
                   <span>Explore Brands</span>
                 </Link>
@@ -131,26 +131,26 @@ export default function HomePage() {
       </section>
 
       {/* 2. Shop by Category - Larger Cards & Spacious Visual Hierarchy */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-10 pb-5 border-b border-[#DDF3F2]">
+      <section className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10">
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-8 sm:mb-10 pb-4 sm:pb-5 border-b border-[#DDF3F2]">
           <div>
             <span className="text-xs uppercase tracking-widest text-[#128F92] font-extrabold block mb-1">
               Curated Avenues
             </span>
-            <h2 className="font-serif text-3xl sm:text-4xl lg:text-5xl text-[#0B4145] font-bold">
+            <h2 className="font-serif text-2xl sm:text-3xl lg:text-4xl text-[#0B4145] font-bold">
               Shop by Category
             </h2>
           </div>
           <Link
             href="/collections"
-            className="mt-4 sm:mt-0 text-sm font-bold text-[#128F92] hover:text-[#0B4145] tracking-wider uppercase inline-flex items-center gap-2 transition-colors"
+            className="mt-4 sm:mt-0 text-xs sm:text-sm font-bold text-[#128F92] hover:text-[#0B4145] tracking-wider uppercase inline-flex items-center gap-2 transition-colors"
           >
             <span>View All Categories</span>
             <ArrowRight className="w-4 h-4" />
           </Link>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6 sm:gap-7">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 sm:gap-5 lg:gap-6">
           {CATEGORIES.slice(0, 6).map((cat) => (
             <CategoryCard key={cat.id} category={cat} />
           ))}
@@ -158,23 +158,23 @@ export default function HomePage() {
       </section>
 
       {/* 3. Bestsellers & Featured Products - Large Prominent Pill Tabs & Spacious Grid */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex flex-col sm:flex-row items-center justify-between mb-10 pb-5 border-b border-[#DDF3F2] gap-5">
+      <section className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10">
+        <div className="flex flex-col sm:flex-row items-center justify-between mb-8 sm:mb-10 pb-4 sm:pb-5 border-b border-[#DDF3F2] gap-4 sm:gap-5">
           <div>
             <span className="text-xs uppercase tracking-widest text-[#128F92] font-extrabold block mb-1">
               Most Loved Formulations
             </span>
-            <h2 className="font-serif text-3xl sm:text-4xl lg:text-5xl text-[#0B4145] font-bold">
+            <h2 className="font-serif text-2xl sm:text-3xl lg:text-4xl text-[#0B4145] font-bold">
               Featured Formulations
             </h2>
           </div>
 
-          {/* Prominent Larger Pill Tab Control */}
-          <div className="flex items-center p-2 bg-white rounded-full border border-[#D4E5E3] shadow-soft">
+          {/* Prominent Calibrated Pill Tab Control */}
+          <div className="flex items-center p-1.5 bg-white rounded-full border border-[#D4E5E3] shadow-soft">
             <button
               type="button"
               onClick={() => setActiveTab('bestsellers')}
-              className={`px-8 py-3 rounded-full text-xs sm:text-sm font-bold transition-all ${
+              className={`px-6 sm:px-7 py-2.5 rounded-full text-xs sm:text-sm font-bold transition-all ${
                 activeTab === 'bestsellers'
                   ? 'bg-[#128F92] text-white shadow-cta'
                   : 'text-[#687F8D] hover:text-[#0B4145]'
@@ -185,7 +185,7 @@ export default function HomePage() {
             <button
               type="button"
               onClick={() => setActiveTab('new')}
-              className={`px-8 py-3 rounded-full text-xs sm:text-sm font-bold transition-all ${
+              className={`px-6 sm:px-7 py-2.5 rounded-full text-xs sm:text-sm font-bold transition-all ${
                 activeTab === 'new'
                   ? 'bg-[#128F92] text-white shadow-cta'
                   : 'text-[#687F8D] hover:text-[#0B4145]'
@@ -196,17 +196,17 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* Larger Product Cards with Uncropped Product Visuals */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-7 sm:gap-8">
+        {/* Calibrated Product Cards with Uncropped Product Visuals */}
+        <div className="grid grid-cols-1 min-[440px]:grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-5 lg:gap-6">
           {displayedProducts.slice(0, 8).map((product) => (
             <ProductCard key={product.id} product={product} />
           ))}
         </div>
 
-        <div className="text-center mt-14">
+        <div className="text-center mt-10 sm:mt-12">
           <Link
             href="/collections"
-            className="inline-flex items-center gap-2.5 h-[60px] px-10 rounded-full bg-white hover:bg-[#DDF3F2] text-[#0B4145] border border-[#D4E5E3] text-sm uppercase tracking-widest font-bold transition-all shadow-card hover:scale-102"
+            className="inline-flex items-center gap-2.5 h-[50px] sm:h-[52px] px-8 sm:px-9 rounded-full bg-white hover:bg-[#DDF3F2] text-[#0B4145] border border-[#D4E5E3] text-xs sm:text-sm uppercase tracking-wider font-bold transition-all shadow-card hover:scale-102"
           >
             <span>Explore Entire Catalogue</span>
             <ArrowRight className="w-4 h-4" />
@@ -215,7 +215,7 @@ export default function HomePage() {
       </section>
 
       {/* 4. Soft Aqua Feature: The Majisa Standard Container */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <section className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10">
         <div className="bg-[#DDF3F2]/55 rounded-[40px] border border-[#BCE7E5] p-8 sm:p-14 lg:p-16 shadow-[0_12px_35px_rgba(11,65,69,0.06)]">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-14 items-center">
             {/* Left Image */}
@@ -232,12 +232,12 @@ export default function HomePage() {
             </div>
 
             {/* Right Copy */}
-            <div className="lg:col-span-7 space-y-7">
+            <div className="lg:col-span-7 space-y-6 sm:space-y-7">
               <span className="text-xs uppercase tracking-widest text-[#128F92] font-extrabold block">
                 The Majisa Standard
               </span>
 
-              <h2 className="font-serif text-3xl sm:text-4xl lg:text-5xl text-[#0B4145] font-bold leading-tight">
+              <h2 className="font-serif text-2xl sm:text-3xl lg:text-4xl text-[#0B4145] font-bold leading-tight">
                 Skin-First Purity, <br />
                 <span className="italic font-normal text-[#128F92]">Cruelty-Free Luxury</span>
               </h2>
@@ -246,9 +246,9 @@ export default function HomePage() {
                 We believe cosmetics should nourish your skin from within. Every Majisa formula is powered by biocompatible botanicals—cold-pressed seed oils, protective squalane, and skin-adaptive mineral pigments.
               </p>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 pt-2">
-                <div className="p-6 rounded-[24px] bg-white border border-[#D4E5E3] shadow-soft">
-                  <h4 className="font-serif text-xl font-bold text-[#0B4145] mb-1.5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5 pt-1">
+                <div className="p-5 sm:p-6 rounded-[24px] bg-white border border-[#D4E5E3] shadow-soft">
+                  <h4 className="font-serif text-lg sm:text-xl font-bold text-[#0B4145] mb-1.5">
                     Heritage Botanicals
                   </h4>
                   <p className="text-xs sm:text-sm text-[#687F8D] leading-relaxed font-medium">
@@ -256,8 +256,8 @@ export default function HomePage() {
                   </p>
                 </div>
 
-                <div className="p-6 rounded-[24px] bg-white border border-[#D4E5E3] shadow-soft">
-                  <h4 className="font-serif text-xl font-bold text-[#0B4145] mb-1.5">
+                <div className="p-5 sm:p-6 rounded-[24px] bg-white border border-[#D4E5E3] shadow-soft">
+                  <h4 className="font-serif text-lg sm:text-xl font-bold text-[#0B4145] mb-1.5">
                     Clean Science
                   </h4>
                   <p className="text-xs sm:text-sm text-[#687F8D] leading-relaxed font-medium">
@@ -269,7 +269,7 @@ export default function HomePage() {
               <div className="pt-2">
                 <Link
                   href="/collections/skincare"
-                  className="inline-flex items-center gap-3 h-[60px] px-9 rounded-full bg-[#128F92] hover:bg-[#0B4145] text-white text-sm uppercase tracking-widest font-bold transition-all shadow-cta"
+                  className="inline-flex items-center gap-2.5 h-[50px] sm:h-[52px] px-8 rounded-full bg-[#128F92] hover:bg-[#0B4145] text-white text-xs sm:text-sm uppercase tracking-wider font-bold transition-all shadow-cta"
                 >
                   <span>Discover Skincare Elixirs</span>
                   <ArrowRight className="w-4 h-4" />
@@ -281,19 +281,19 @@ export default function HomePage() {
       </section>
 
       {/* 5. Shop by Brand - Distinct White Cards */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-10 pb-5 border-b border-[#DDF3F2]">
+      <section className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10">
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-8 sm:mb-10 pb-4 sm:pb-5 border-b border-[#DDF3F2]">
           <div>
             <span className="text-xs uppercase tracking-widest text-[#128F92] font-extrabold block mb-1">
               Atelier Houses
             </span>
-            <h2 className="font-serif text-3xl sm:text-4xl lg:text-5xl text-[#0B4145] font-bold">
+            <h2 className="font-serif text-2xl sm:text-3xl lg:text-4xl text-[#0B4145] font-bold">
               Available Brands
             </h2>
           </div>
           <Link
             href="/brands"
-            className="mt-4 sm:mt-0 text-sm font-bold text-[#128F92] hover:text-[#0B4145] tracking-wider uppercase inline-flex items-center gap-2 transition-colors"
+            className="mt-4 sm:mt-0 text-xs sm:text-sm font-bold text-[#128F92] hover:text-[#0B4145] tracking-wider uppercase inline-flex items-center gap-2 transition-colors"
           >
             <span>View All Brands</span>
             <ArrowRight className="w-4 h-4" />
@@ -308,24 +308,24 @@ export default function HomePage() {
       </section>
 
       {/* 6. Concierge Assistance Touchpoint on Homepage */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="bg-white rounded-[32px] p-8 sm:p-12 border border-[#D4E5E3] shadow-card flex flex-col md:flex-row items-center justify-between gap-8 text-center md:text-left">
+      <section className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10">
+        <div className="bg-white rounded-[32px] p-7 sm:p-10 lg:p-12 border border-[#D4E5E3] shadow-card flex flex-col md:flex-row items-center justify-between gap-6 sm:gap-8 text-center md:text-left">
           <div className="space-y-2 max-w-xl">
             <span className="text-xs uppercase tracking-widest text-[#128F92] font-extrabold block">
               Personalized Beauty Advisory
             </span>
-            <h2 className="font-serif text-3xl sm:text-4xl text-[#0B4145] font-bold">
+            <h2 className="font-serif text-2xl sm:text-3xl text-[#0B4145] font-bold">
               Looking for Shade Guidance or Gifting Consultations?
             </h2>
-            <p className="text-base text-[#687F8D] font-medium leading-relaxed">
+            <p className="text-sm sm:text-base text-[#687F8D] font-medium leading-relaxed">
               Our dedicated beauty advisors are available to guide you to the perfect formulation for your tone and ritual.
             </p>
           </div>
 
-          <div className="flex flex-col sm:flex-row items-center gap-4 shrink-0">
+          <div className="flex flex-col sm:flex-row items-center gap-3.5 shrink-0">
             <Link
               href="/contact"
-              className="h-[56px] px-8 rounded-full bg-[#128F92] hover:bg-[#0B4145] text-white text-sm uppercase tracking-wider font-bold transition-all shadow-cta inline-flex items-center gap-2.5"
+              className="h-[50px] sm:h-[52px] px-7 sm:px-8 rounded-full bg-[#128F92] hover:bg-[#0B4145] text-white text-xs sm:text-sm uppercase tracking-wider font-bold transition-all shadow-cta inline-flex items-center gap-2.5"
             >
               <span>Connect With Concierge</span>
               <ArrowRight className="w-4 h-4" />
@@ -334,7 +334,7 @@ export default function HomePage() {
               href={CONTACT_INFO.whatsappLink}
               target="_blank"
               rel="noopener noreferrer"
-              className="h-[56px] px-7 rounded-full bg-[#DDF3F2] hover:bg-[#128F92] text-[#0B4145] hover:text-white border border-[#BCE7E5] text-sm uppercase tracking-wider font-bold transition-all inline-flex items-center gap-2"
+              className="h-[50px] sm:h-[52px] px-6 sm:px-7 rounded-full bg-[#DDF3F2] hover:bg-[#128F92] text-[#0B4145] hover:text-white border border-[#BCE7E5] text-xs sm:text-sm uppercase tracking-wider font-bold transition-all inline-flex items-center gap-2"
               aria-label="Chat with Majisa Cosmetics on WhatsApp"
             >
               <MessageCircle className="w-4 h-4 text-[#128F92] group-hover:text-white" />

@@ -20,21 +20,21 @@ export default function ProductGrid({
   onResetFilters,
   emptyTitle = 'No Formulations Found',
   emptyDescription = 'We could not find any products matching your selected criteria. Try adjusting or clearing your filters.',
-  columns = 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 2xl:grid-cols-4',
+  columns = 'grid-cols-1 min-[440px]:grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 2xl:grid-cols-4',
 }: ProductGridProps) {
   if (isLoading) {
     return (
-      <div className={`grid ${columns} gap-6 sm:gap-7 lg:gap-8`}>
+      <div className={`grid ${columns} gap-4 sm:gap-5 lg:gap-6`}>
         {Array.from({ length: 8 }).map((_, i) => (
           <div
             key={i}
-            className="animate-pulse bg-white rounded-[26px] p-5 border border-[#D4E5E3] shadow-card space-y-4"
+            className="animate-pulse bg-white rounded-[20px] sm:rounded-[22px] p-3.5 sm:p-4 border border-[#D4E5E3] shadow-card space-y-3.5"
           >
-            <div className="aspect-[4/5] bg-[#F0F9F8] rounded-[20px]" />
-            <div className="h-4 bg-[#DDF3F2] rounded-full w-1/3" />
-            <div className="h-5 bg-[#DDF3F2] rounded-full w-4/5" />
-            <div className="h-6 bg-[#DDF3F2] rounded-full w-1/4" />
-            <div className="h-11 bg-[#DDF3F2] rounded-full w-full" />
+            <div className="aspect-[4/5] bg-[#F0F9F8] rounded-[16px]" />
+            <div className="h-3.5 bg-[#DDF3F2] rounded-full w-1/3" />
+            <div className="h-4.5 bg-[#DDF3F2] rounded-full w-4/5" />
+            <div className="h-5 bg-[#DDF3F2] rounded-full w-1/4" />
+            <div className="h-10 bg-[#DDF3F2] rounded-full w-full" />
           </div>
         ))}
       </div>
@@ -68,7 +68,7 @@ export default function ProductGrid({
   }
 
   return (
-    <div className={`grid ${columns} gap-6 sm:gap-7 lg:gap-8`}>
+    <div className={`grid ${columns} gap-4 sm:gap-5 lg:gap-6`}>
       {products.map((product) => (
         <ProductCard key={product.id} product={product} />
       ))}

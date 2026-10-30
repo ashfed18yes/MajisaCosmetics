@@ -57,7 +57,7 @@ export default function ProductDetailClient({
   };
 
   return (
-    <div className="max-w-[1520px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-12 py-8 sm:py-12 space-y-14 sm:space-y-16">
+    <div className="max-w-[1480px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 py-8 sm:py-12 space-y-14 sm:space-y-16">
       {/* Breadcrumbs in clean floating card pill */}
       <nav className="inline-flex items-center gap-2 text-xs sm:text-sm text-[#687F8D] font-bold tracking-wide bg-white px-5 py-2.5 rounded-full border border-[#D4E5E3] shadow-soft">
         <Link href="/" className="hover:text-[#128F92] transition-colors">
