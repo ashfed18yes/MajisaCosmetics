@@ -163,39 +163,43 @@ export async function createProductAction(data: ProductFormData) {
     };
   });
 
-  if (imagesToInsert.length > 0) {
-    const { error: imagesError } = await adminClient
-      .from('product_images')
-      .insert(imagesToInsert);
+  // 5. Concurrently insert images and variants in parallel for maximum performance
+  const [imagesInsertRes, variantsInsertRes] = await Promise.all([
+    imagesToInsert.length > 0
+      ? adminClient.from('product_images').insert(imagesToInsert)
+      : Promise.resolve({ error: null }),
+    data.variants && data.variants.length > 0
+      ? (() => {
+          const validVariants = data.variants
+            .filter((v) => v.name?.trim())
+            .map((v, index) => ({
+              product_id: productId,
+              variant_type: v.type,
+              name: v.name.trim(),
+              hex_code: v.hexCode?.trim() || null,
+              price_override: v.priceOverride ? Number(v.priceOverride) : null,
+              is_available: v.isAvailable ?? true,
+              display_order: index,
+            }));
+          return validVariants.length > 0
+            ? adminClient.from('product_variants').insert(validVariants)
+            : Promise.resolve({ error: null });
+        })()
+      : Promise.resolve({ error: null }),
+  ]);
 
-    if (imagesError) {
-      console.error('Failed to insert product images:', imagesError);
-    }
+  if (imagesInsertRes.error) {
+    console.error('Failed to insert product images:', imagesInsertRes.error);
+    // ATOMICITY: Clean up orphaned product if image insertion fails so no inconsistent records remain
+    await adminClient.from('products').delete().eq('id', productId);
+    return {
+      success: false,
+      error: `Failed to save product images: ${imagesInsertRes.error.message}`,
+    };
   }
 
-  // 6. Insert variants (if provided)
-  if (data.variants && data.variants.length > 0) {
-    const validVariants = data.variants
-      .filter((v) => v.name?.trim())
-      .map((v, index) => ({
-        product_id: productId,
-        variant_type: v.type,
-        name: v.name.trim(),
-        hex_code: v.hexCode?.trim() || null,
-        price_override: v.priceOverride ? Number(v.priceOverride) : null,
-        is_available: v.isAvailable ?? true,
-        display_order: index,
-      }));
-
-    if (validVariants.length > 0) {
-      const { error: variantError } = await adminClient
-        .from('product_variants')
-        .insert(validVariants);
-
-      if (variantError) {
-        console.error('Failed to insert product variants:', variantError);
-      }
-    }
+  if (variantsInsertRes.error) {
+    console.error('Failed to insert product variants:', variantsInsertRes.error);
   }
 
   revalidatePath('/admin/products');
@@ -277,7 +281,7 @@ export async function updateProductAction(productId: string, data: ProductFormDa
     return { success: false, error: updateError.message };
   }
 
-  // 3. Sync product images: Safely delete removed Cloudinary assets, then re-insert
+  // 3. Sync product images: Safely delete removed Cloudinary assets in parallel
   const { data: existingImages } = await adminClient
     .from('product_images')
     .select('public_id')
@@ -287,63 +291,66 @@ export async function updateProductAction(productId: string, data: ProductFormDa
     const retainedPublicIds = new Set(
       data.images.map((img) => img.publicId?.trim()).filter(Boolean)
     );
-    for (const oldImg of existingImages) {
-      if (oldImg.public_id && !retainedPublicIds.has(oldImg.public_id)) {
-        if (oldImg.public_id.startsWith('majisa-cosmetics/products/')) {
-          await deleteCloudinaryProductImage(oldImg.public_id);
-        }
-      }
+    const deletePromises = existingImages
+      .filter(
+        (oldImg) =>
+          oldImg.public_id &&
+          !retainedPublicIds.has(oldImg.public_id) &&
+          oldImg.public_id.startsWith('majisa-cosmetics/products/')
+      )
+      .map((oldImg) => deleteCloudinaryProductImage(oldImg.public_id!));
+
+    if (deletePromises.length > 0) {
+      Promise.allSettled(deletePromises).catch((err) =>
+        console.error('Error deleting removed Cloudinary images:', err)
+      );
     }
   }
 
-  const { error: deleteImagesError } = await adminClient
-    .from('product_images')
-    .delete()
-    .eq('product_id', productId);
+  // Concurrently clear old images and variants
+  await Promise.all([
+    adminClient.from('product_images').delete().eq('product_id', productId),
+    adminClient.from('product_variants').delete().eq('product_id', productId),
+  ]);
 
-  if (!deleteImagesError) {
-    const validImages = data.images.filter((img) => img.url?.trim());
-    let hasPrimary = validImages.some((img) => img.isPrimary);
+  // Concurrently insert updated images and variants in parallel
+  const validImages = data.images.filter((img) => img.url?.trim());
+  let hasPrimary = validImages.some((img) => img.isPrimary);
 
-    const imagesToInsert = validImages.map((img, index) => {
-      const isPrimary = hasPrimary ? !!img.isPrimary : index === 0;
-      return {
-        product_id: productId,
-        secure_url: img.url.trim(),
-        public_id: img.publicId?.trim() || `img_${productId.substring(0, 8)}_${index}_${Date.now()}`,
-        alt_text: img.altText?.trim() || trimmedName,
-        display_order: index,
-        is_primary: isPrimary,
-        width: img.width || null,
-        height: img.height || null,
-      };
-    });
+  const imagesToInsert = validImages.map((img, index) => {
+    const isPrimary = hasPrimary ? !!img.isPrimary : index === 0;
+    return {
+      product_id: productId,
+      secure_url: img.url.trim(),
+      public_id: img.publicId?.trim() || `img_${productId.substring(0, 8)}_${index}_${Date.now()}`,
+      alt_text: img.altText?.trim() || trimmedName,
+      display_order: index,
+      is_primary: isPrimary,
+      width: img.width || null,
+      height: img.height || null,
+    };
+  });
 
-    if (imagesToInsert.length > 0) {
-      await adminClient.from('product_images').insert(imagesToInsert);
-    }
-  }
+  const validVariants = (data.variants || [])
+    .filter((v) => v.name?.trim())
+    .map((v, index) => ({
+      product_id: productId,
+      variant_type: v.type,
+      name: v.name.trim(),
+      hex_code: v.hexCode?.trim() || null,
+      price_override: v.priceOverride ? Number(v.priceOverride) : null,
+      is_available: v.isAvailable ?? true,
+      display_order: index,
+    }));
 
-  // 4. Sync product variants
-  await adminClient.from('product_variants').delete().eq('product_id', productId);
-
-  if (data.variants && data.variants.length > 0) {
-    const validVariants = data.variants
-      .filter((v) => v.name?.trim())
-      .map((v, index) => ({
-        product_id: productId,
-        variant_type: v.type,
-        name: v.name.trim(),
-        hex_code: v.hexCode?.trim() || null,
-        price_override: v.priceOverride ? Number(v.priceOverride) : null,
-        is_available: v.isAvailable ?? true,
-        display_order: index,
-      }));
-
-    if (validVariants.length > 0) {
-      await adminClient.from('product_variants').insert(validVariants);
-    }
-  }
+  await Promise.all([
+    imagesToInsert.length > 0
+      ? adminClient.from('product_images').insert(imagesToInsert)
+      : Promise.resolve({ error: null }),
+    validVariants.length > 0
+      ? adminClient.from('product_variants').insert(validVariants)
+      : Promise.resolve({ error: null }),
+  ]);
 
   revalidatePath('/admin/products');
   revalidatePath(`/admin/products/${productId}/edit`);

@@ -27,6 +27,7 @@ import {
   ProductImageInput,
   ProductVariantInput,
 } from './actions';
+import { compressProductImage } from '@/lib/imageCompression';
 
 interface BrandOption {
   id: string;
@@ -105,9 +106,22 @@ export default function ProductFormClient({
     initialData?.images && initialData.images.length > 0 ? initialData.images : []
   );
   const [newImageUrl, setNewImageUrl] = useState('');
-  const [isUploading, setIsUploading] = useState(false);
   const [showUrlInput, setShowUrlInput] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Upload queue for controlled parallel processing and per-image feedback
+  interface UploadQueueItem {
+    id: string;
+    file: File;
+    name: string;
+    previewUrl: string;
+    status: 'compressing' | 'uploading' | 'error';
+    errorMessage?: string;
+  }
+
+  const [uploadQueue, setUploadQueue] = useState<UploadQueueItem[]>([]);
+  const [saveStage, setSaveStage] = useState<'idle' | 'uploading' | 'saving' | 'completed' | 'error'>('idle');
+  const isSubmittingRef = useRef(false);
 
   // Variants state
   const [variants, setVariants] = useState<ProductVariantInput[]>(
@@ -128,67 +142,141 @@ export default function ProductFormClient({
   const [quickCategoryName, setQuickCategoryName] = useState('');
   const [quickCategoryError, setQuickCategoryError] = useState<string | null>(null);
 
+  // Helpers for queue item state
+  const updateQueueItem = (id: string, updates: Partial<UploadQueueItem>) => {
+    setUploadQueue((prev) =>
+      prev.map((item) => (item.id === id ? { ...item, ...updates } : item))
+    );
+  };
+
+  /**
+   * Processes a single image file: compresses on client, then uploads to Cloudinary via server action.
+   */
+  const uploadSingleItem = async (item: UploadQueueItem) => {
+    try {
+      updateQueueItem(item.id, { status: 'compressing', errorMessage: undefined });
+
+      // 1. Client-side image compression & optimization
+      const compressedFile = await compressProductImage(item.file, {
+        maxWidth: 2048,
+        maxHeight: 2048,
+        quality: 0.90,
+      });
+
+      // 2. Upload to Cloudinary
+      updateQueueItem(item.id, { status: 'uploading' });
+      const formData = new FormData();
+      formData.append('file', compressedFile);
+
+      const res = await uploadProductImageAction(formData);
+
+      if (!res.success || !res.image) {
+        updateQueueItem(item.id, {
+          status: 'error',
+          errorMessage: res.error || `Upload failed for ${item.name}`,
+        });
+        return;
+      }
+
+      // 3. Add to confirmed images
+      setImages((prev) => {
+        const isFirst = prev.length === 0;
+        return [
+          ...prev,
+          {
+            url: res.image!.url,
+            publicId: res.image!.publicId,
+            width: res.image!.width,
+            height: res.image!.height,
+            altText: name.trim() || item.name.replace(/\.[^/.]+$/, ''),
+            isPrimary: isFirst,
+          },
+        ];
+      });
+
+      // 4. Clean up preview object URL and remove from queue
+      URL.revokeObjectURL(item.previewUrl);
+      setUploadQueue((prev) => prev.filter((q) => q.id !== item.id));
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Network error uploading image.';
+      updateQueueItem(item.id, { status: 'error', errorMessage: msg });
+    }
+  };
+
+  /**
+   * Processes items in parallel with controlled concurrency (up to 3 simultaneous uploads).
+   */
+  const processUploadQueue = async (items: UploadQueueItem[]) => {
+    const queue = [...items];
+    const concurrency = Math.min(3, queue.length);
+
+    const worker = async () => {
+      while (queue.length > 0) {
+        const nextItem = queue.shift();
+        if (!nextItem) break;
+        await uploadSingleItem(nextItem);
+      }
+    };
+
+    const workers = Array.from({ length: concurrency }, () => worker());
+    await Promise.all(workers);
+  };
+
   // Image handlers
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
+    const rawFiles = e.target.files;
+    if (!rawFiles || rawFiles.length === 0) return;
 
     const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
-    const maxSizeBytes = 5 * 1024 * 1024; // 5 MB
+    const maxSizeBytes = 15 * 1024 * 1024; // Allow up to 15MB raw; compressed client-side before sending
 
     setErrorMessage(null);
-    setIsUploading(true);
 
-    try {
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i];
+    const fileList = Array.from(rawFiles);
+    const validItems: UploadQueueItem[] = [];
 
-        if (!allowedTypes.includes(file.type)) {
-          setErrorMessage(`"${file.name}" is not supported. Please upload a JPG, PNG, or WebP image.`);
-          setIsUploading(false);
-          return;
-        }
-
-        if (file.size > maxSizeBytes) {
-          setErrorMessage(`"${file.name}" exceeds the 5 MB limit. Please choose a smaller image.`);
-          setIsUploading(false);
-          return;
-        }
-
-        const formData = new FormData();
-        formData.append('file', file);
-
-        const res = await uploadProductImageAction(formData);
-
-        if (!res.success || !res.image) {
-          setErrorMessage(res.error || `Failed to upload "${file.name}".`);
-          setIsUploading(false);
-          return;
-        }
-
-        setImages((prev) => {
-          const isFirst = prev.length === 0;
-          return [
-            ...prev,
-            {
-              url: res.image!.url,
-              publicId: res.image!.publicId,
-              width: res.image!.width,
-              height: res.image!.height,
-              altText: name.trim() || file.name.replace(/\.[^/.]+$/, ''),
-              isPrimary: isFirst,
-            },
-          ];
-        });
+    for (const file of fileList) {
+      if (!allowedTypes.includes(file.type)) {
+        setErrorMessage(`"${file.name}" is not supported. Please upload a JPG, PNG, or WebP image.`);
+        continue;
       }
-    } catch (err: unknown) {
-      setErrorMessage(err instanceof Error ? err.message : 'An error occurred while uploading image.');
-    } finally {
-      setIsUploading(false);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
+
+      if (file.size > maxSizeBytes) {
+        setErrorMessage(`"${file.name}" exceeds the 15 MB limit. Please choose a smaller image.`);
+        continue;
       }
+
+      validItems.push({
+        id: `upl-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+        file,
+        name: file.name,
+        previewUrl: URL.createObjectURL(file),
+        status: 'compressing',
+      });
     }
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+
+    if (validItems.length === 0) return;
+
+    setUploadQueue((prev) => [...prev, ...validItems]);
+    await processUploadQueue(validItems);
+  };
+
+  const handleRetryItem = (itemId: string) => {
+    const item = uploadQueue.find((q) => q.id === itemId);
+    if (!item) return;
+    uploadSingleItem(item);
+  };
+
+  const handleCancelQueueItem = (itemId: string) => {
+    const item = uploadQueue.find((q) => q.id === itemId);
+    if (item) {
+      URL.revokeObjectURL(item.previewUrl);
+    }
+    setUploadQueue((prev) => prev.filter((q) => q.id !== itemId));
   };
 
   const handleAddImage = (e?: React.FormEvent) => {
@@ -307,11 +395,65 @@ export default function ProductFormClient({
     setVariants((prev) => prev.filter((_, i) => i !== index));
   };
 
-  // Form Submit
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const isActivelyUploading = uploadQueue.some(
+    (q) => q.status === 'compressing' || q.status === 'uploading'
+  );
+
+  const isSaveDisabled =
+    isPending ||
+    isActivelyUploading ||
+    saveStage === 'saving' ||
+    saveStage === 'completed';
+
+  const renderSaveButtonContent = () => {
+    if (isActivelyUploading) {
+      const activeCount = uploadQueue.filter(
+        (q) => q.status === 'compressing' || q.status === 'uploading'
+      ).length;
+      return (
+        <span className="inline-flex items-center space-x-1.5">
+          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+          <span>Uploading {activeCount} Image{activeCount > 1 ? 's' : ''}...</span>
+        </span>
+      );
+    }
+
+    if (saveStage === 'saving' || isPending) {
+      return (
+        <span className="inline-flex items-center space-x-1.5">
+          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+          <span>Saving Product...</span>
+        </span>
+      );
+    }
+
+    if (saveStage === 'completed') {
+      return (
+        <span className="inline-flex items-center space-x-1.5">
+          <Check className="w-3.5 h-3.5 text-emerald-300" />
+          <span>Completed!</span>
+        </span>
+      );
+    }
+
+    return <span>{mode === 'create' ? 'Save Product' : 'Save Changes'}</span>;
+  };
+
+  // Form Submit with duplicate submission locking & stage tracking
+  const handleSubmit = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+
+    if (isSubmittingRef.current || isPending) {
+      return;
+    }
+
     setErrorMessage(null);
     setSuccessMessage(null);
+
+    if (isActivelyUploading) {
+      setErrorMessage('Please wait for image uploads to complete before saving.');
+      return;
+    }
 
     const trimmedName = name.trim();
     if (!trimmedName) {
@@ -330,6 +472,9 @@ export default function ProductFormClient({
       return;
     }
 
+    isSubmittingRef.current = true;
+    setSaveStage('saving');
+
     const payload: ProductFormData = {
       name: trimmedName,
       basePrice: priceNum,
@@ -347,25 +492,38 @@ export default function ProductFormClient({
     };
 
     startTransition(async () => {
-      let res;
-      if (mode === 'create') {
-        res = await createProductAction(payload);
-      } else if (productId) {
-        res = await updateProductAction(productId, payload);
-      }
+      try {
+        let res;
+        if (mode === 'create') {
+          res = await createProductAction(payload);
+        } else if (productId) {
+          res = await updateProductAction(productId, payload);
+        }
 
-      if (res?.success) {
-        setSuccessMessage(
-          mode === 'create'
-            ? 'Product saved successfully! Returning to catalog...'
-            : 'Changes saved successfully! Returning to catalog...'
+        if (res?.success) {
+          setSaveStage('completed');
+          setSuccessMessage(
+            mode === 'create'
+              ? 'Product saved successfully! Returning to catalog...'
+              : 'Changes saved successfully! Returning to catalog...'
+          );
+          setTimeout(() => {
+            router.push('/admin/products');
+            router.refresh();
+          }, 800);
+        } else {
+          isSubmittingRef.current = false;
+          setSaveStage('error');
+          setErrorMessage(
+            res?.error || 'Unable to save product. Please check the details and try again.'
+          );
+        }
+      } catch (err: unknown) {
+        isSubmittingRef.current = false;
+        setSaveStage('error');
+        setErrorMessage(
+          err instanceof Error ? err.message : 'An unexpected error occurred while saving.'
         );
-        setTimeout(() => {
-          router.push('/admin/products');
-          router.refresh();
-        }, 1000);
-      } else {
-        setErrorMessage(res?.error || 'Unable to save product. Please check the details and try again.');
       }
     });
   };
@@ -390,11 +548,11 @@ export default function ProductFormClient({
         {/* Top Save Shortcut */}
         <button
           type="button"
-          onClick={handleSubmit}
-          disabled={isPending}
+          onClick={() => handleSubmit()}
+          disabled={isSaveDisabled}
           className="px-5 py-2 bg-[#0B4145] text-white rounded-xl text-sm font-semibold hover:bg-[#083134] transition-all shadow-sm disabled:opacity-50"
         >
-          {isPending ? 'Saving...' : 'Save Product'}
+          {renderSaveButtonContent()}
         </button>
       </div>
 
@@ -551,11 +709,11 @@ export default function ProductFormClient({
               <div className="flex flex-wrap items-center gap-2">
                 <button
                   type="button"
-                  disabled={isUploading}
+                  disabled={isActivelyUploading}
                   onClick={() => fileInputRef.current?.click()}
                   className="inline-flex items-center space-x-2 px-4 py-2 bg-[#0B4145] text-white text-xs font-semibold rounded-xl hover:bg-[#083134] disabled:opacity-60 transition-colors shadow-sm"
                 >
-                  {isUploading ? (
+                  {isActivelyUploading ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin" />
                       <span>Uploading to Cloudinary...</span>
@@ -563,7 +721,7 @@ export default function ProductFormClient({
                   ) : (
                     <>
                       <Upload className="w-4 h-4" />
-                      <span>Upload Image from Device</span>
+                      <span>Upload Images from Device</span>
                     </>
                   )}
                 </button>
@@ -598,16 +756,17 @@ export default function ProductFormClient({
               )}
 
               <p className="text-[11px] text-[#7A7670]">
-                Supports JPG, PNG, and WebP (up to 5 MB per image). Stored securely on Cloudinary.
+                Supports JPG, PNG, and WebP (up to 15 MB). Multi-image parallel uploads with automatic client compression.
               </p>
             </div>
 
-            {/* Thumbnails Row */}
-            {images.length > 0 ? (
+            {/* Thumbnails Row: Confirmed Images + Active Upload Queue */}
+            {images.length > 0 || uploadQueue.length > 0 ? (
               <div className="flex flex-wrap gap-3 mt-3">
+                {/* 1. Confirmed Uploaded Images */}
                 {images.map((img, idx) => (
                   <div
-                    key={idx}
+                    key={img.publicId || idx}
                     className={`relative w-20 h-20 rounded-xl overflow-hidden border-2 bg-gray-50 flex-shrink-0 group ${
                       img.isPrimary ? 'border-[#0B4145] ring-2 ring-[#0B4145]/20' : 'border-[#E5E0D8]'
                     }`}
@@ -650,11 +809,67 @@ export default function ProductFormClient({
                     </div>
                   </div>
                 ))}
+
+                {/* 2. Upload Queue Items with Instant Preview & Progress */}
+                {uploadQueue.map((item) => (
+                  <div
+                    key={item.id}
+                    className={`relative w-20 h-20 rounded-xl overflow-hidden border-2 flex-shrink-0 flex items-center justify-center ${
+                      item.status === 'error'
+                        ? 'border-rose-400 bg-rose-50'
+                        : 'border-[#128F92] bg-gray-100'
+                    }`}
+                  >
+                    {/* Instant Local Preview */}
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={item.previewUrl}
+                      alt={item.name}
+                      className="w-full h-full object-cover opacity-70"
+                    />
+
+                    {/* Progress / Status Overlay */}
+                    <div className="absolute inset-0 bg-black/40 backdrop-blur-[1px] flex flex-col items-center justify-center p-1 text-center text-white">
+                      {item.status === 'compressing' && (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin text-white mb-0.5" />
+                          <span className="text-[8px] font-bold uppercase tracking-wider">Optimizing</span>
+                        </>
+                      )}
+                      {item.status === 'uploading' && (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin text-[#DDF3F2] mb-0.5" />
+                          <span className="text-[8px] font-bold uppercase tracking-wider">Uploading</span>
+                        </>
+                      )}
+                      {item.status === 'error' && (
+                        <div className="flex flex-col items-center">
+                          <AlertCircle className="w-4 h-4 text-rose-300 mb-0.5" />
+                          <button
+                            type="button"
+                            onClick={() => handleRetryItem(item.id)}
+                            className="text-[9px] font-bold underline bg-rose-800/90 px-1.5 py-0.5 rounded text-white hover:bg-rose-900"
+                          >
+                            Retry
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleCancelQueueItem(item.id)}
+                            className="absolute top-0.5 right-1 text-white/80 hover:text-white text-xs font-bold"
+                            title="Cancel"
+                          >
+                            &times;
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
               </div>
             ) : (
               <div className="flex items-center space-x-2 text-xs text-[#7A7670] mt-3 p-3 bg-[#FBF9F5] border border-dashed border-[#D8D3C8] rounded-xl">
                 <ImageIcon className="w-4 h-4 stroke-1 text-[#7A7670]" />
-                <span>At least one product image is required. Click &quot;Upload Image from Device&quot; to begin.</span>
+                <span>At least one product image is required. Click &quot;Upload Images from Device&quot; to begin.</span>
               </div>
             )}
           </div>
@@ -867,10 +1082,10 @@ export default function ProductFormClient({
           </Link>
           <button
             type="submit"
-            disabled={isPending}
+            disabled={isSaveDisabled}
             className="px-6 py-2.5 bg-[#0B4145] text-white text-sm font-semibold rounded-xl hover:bg-[#083134] transition-all shadow-sm disabled:opacity-50"
           >
-            {isPending ? 'Saving...' : 'Save Product'}
+            {renderSaveButtonContent()}
           </button>
         </div>
       </form>

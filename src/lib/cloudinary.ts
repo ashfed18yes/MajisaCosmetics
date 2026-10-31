@@ -99,6 +99,13 @@ export async function uploadProductImage(
         resource_type: 'image',
         allowed_formats: ['jpg', 'jpeg', 'png', 'webp'],
         unique_filename: true,
+        overwrite: false,
+        // Disable unnecessary heavy analysis pipelines during upload for fastest response
+        quality_analysis: false,
+        colors: false,
+        faces: false,
+        phash: false,
+        cinemagraph_analysis: false,
       },
       (error, result: UploadApiResponse | undefined) => {
         if (error || !result) {
