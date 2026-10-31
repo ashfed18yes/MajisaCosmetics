@@ -29,7 +29,7 @@ export default async function EditProductPage({ params }: EditProductPageProps) 
     adminClient.from('products').select('*').eq('id', id).maybeSingle(),
     adminClient
       .from('product_images')
-      .select('secure_url, alt_text, is_primary, display_order')
+      .select('secure_url, public_id, width, height, alt_text, is_primary, display_order')
       .eq('product_id', id)
       .order('display_order', { ascending: true }),
     adminClient
@@ -62,6 +62,9 @@ export default async function EditProductPage({ params }: EditProductPageProps) 
     isNew: product.is_new,
     images: (images || []).map((img) => ({
       url: img.secure_url,
+      publicId: img.public_id,
+      width: img.width,
+      height: img.height,
       altText: img.alt_text || '',
       isPrimary: img.is_primary,
     })),

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useTransition } from 'react';
+import React, { useState, useTransition, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
@@ -14,10 +14,13 @@ import {
   AlertCircle,
   CheckCircle2,
   Image as ImageIcon,
+  Upload,
+  Loader2,
 } from 'lucide-react';
 import {
   createProductAction,
   updateProductAction,
+  uploadProductImageAction,
   quickCreateBrandAction,
   quickCreateCategoryAction,
   ProductFormData,
@@ -102,6 +105,9 @@ export default function ProductFormClient({
     initialData?.images && initialData.images.length > 0 ? initialData.images : []
   );
   const [newImageUrl, setNewImageUrl] = useState('');
+  const [isUploading, setIsUploading] = useState(false);
+  const [showUrlInput, setShowUrlInput] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Variants state
   const [variants, setVariants] = useState<ProductVariantInput[]>(
@@ -123,6 +129,68 @@ export default function ProductFormClient({
   const [quickCategoryError, setQuickCategoryError] = useState<string | null>(null);
 
   // Image handlers
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+    const maxSizeBytes = 5 * 1024 * 1024; // 5 MB
+
+    setErrorMessage(null);
+    setIsUploading(true);
+
+    try {
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+
+        if (!allowedTypes.includes(file.type)) {
+          setErrorMessage(`"${file.name}" is not supported. Please upload a JPG, PNG, or WebP image.`);
+          setIsUploading(false);
+          return;
+        }
+
+        if (file.size > maxSizeBytes) {
+          setErrorMessage(`"${file.name}" exceeds the 5 MB limit. Please choose a smaller image.`);
+          setIsUploading(false);
+          return;
+        }
+
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const res = await uploadProductImageAction(formData);
+
+        if (!res.success || !res.image) {
+          setErrorMessage(res.error || `Failed to upload "${file.name}".`);
+          setIsUploading(false);
+          return;
+        }
+
+        setImages((prev) => {
+          const isFirst = prev.length === 0;
+          return [
+            ...prev,
+            {
+              url: res.image!.url,
+              publicId: res.image!.publicId,
+              width: res.image!.width,
+              height: res.image!.height,
+              altText: name.trim() || file.name.replace(/\.[^/.]+$/, ''),
+              isPrimary: isFirst,
+            },
+          ];
+        });
+      }
+    } catch (err: unknown) {
+      setErrorMessage(err instanceof Error ? err.message : 'An error occurred while uploading image.');
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
   const handleAddImage = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     const trimmedUrl = newImageUrl.trim();
@@ -465,25 +533,73 @@ export default function ProductFormClient({
           {/* 4. Product Image (Required) */}
           <div className="pt-2">
             <label className="block text-xs font-semibold text-[#2D2A26] mb-1.5">
-              Product Image <span className="text-rose-500">*</span>
+              Product Images <span className="text-rose-500">*</span>
             </label>
 
-            {/* URL Input & Add Button */}
-            <div className="flex gap-2">
-              <input
-                type="url"
-                placeholder="Paste image URL (https://...)"
-                value={newImageUrl}
-                onChange={(e) => setNewImageUrl(e.target.value)}
-                className="flex-1 px-3.5 py-2 text-sm bg-[#FBF9F5] border border-[#D8D3C8] rounded-xl focus:outline-none focus:ring-1 focus:ring-[#0B4145]"
-              />
-              <button
-                type="button"
-                onClick={() => handleAddImage()}
-                className="px-4 py-2 bg-[#0B4145] text-white text-xs font-semibold rounded-xl hover:bg-[#083134] transition-colors"
-              >
-                Add Image
-              </button>
+            {/* Hidden File Input */}
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileUpload}
+              accept="image/jpeg,image/png,image/webp"
+              multiple
+              className="hidden"
+            />
+
+            {/* Upload Buttons & Options */}
+            <div className="space-y-2.5">
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  disabled={isUploading}
+                  onClick={() => fileInputRef.current?.click()}
+                  className="inline-flex items-center space-x-2 px-4 py-2 bg-[#0B4145] text-white text-xs font-semibold rounded-xl hover:bg-[#083134] disabled:opacity-60 transition-colors shadow-sm"
+                >
+                  {isUploading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Uploading to Cloudinary...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="w-4 h-4" />
+                      <span>Upload Image from Device</span>
+                    </>
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setShowUrlInput(!showUrlInput)}
+                  className="px-3 py-2 text-xs text-[#0B4145] hover:text-[#083134] font-medium hover:underline"
+                >
+                  {showUrlInput ? 'Hide URL input' : '+ Or paste image URL'}
+                </button>
+              </div>
+
+              {/* URL Input (Optional / Fallback) */}
+              {showUrlInput && (
+                <div className="flex gap-2 pt-1">
+                  <input
+                    type="url"
+                    placeholder="Paste image URL (https://...)"
+                    value={newImageUrl}
+                    onChange={(e) => setNewImageUrl(e.target.value)}
+                    className="flex-1 px-3.5 py-2 text-sm bg-[#FBF9F5] border border-[#D8D3C8] rounded-xl focus:outline-none focus:ring-1 focus:ring-[#0B4145]"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleAddImage()}
+                    className="px-4 py-2 bg-stone-700 text-white text-xs font-semibold rounded-xl hover:bg-stone-800 transition-colors"
+                  >
+                    Add URL
+                  </button>
+                </div>
+              )}
+
+              <p className="text-[11px] text-[#7A7670]">
+                Supports JPG, PNG, and WebP (up to 5 MB per image). Stored securely on Cloudinary.
+              </p>
             </div>
 
             {/* Thumbnails Row */}
@@ -493,7 +609,7 @@ export default function ProductFormClient({
                   <div
                     key={idx}
                     className={`relative w-20 h-20 rounded-xl overflow-hidden border-2 bg-gray-50 flex-shrink-0 group ${
-                      img.isPrimary ? 'border-[#0B4145]' : 'border-[#E5E0D8]'
+                      img.isPrimary ? 'border-[#0B4145] ring-2 ring-[#0B4145]/20' : 'border-[#E5E0D8]'
                     }`}
                   >
                     <Image
@@ -506,18 +622,18 @@ export default function ProductFormClient({
 
                     {/* Primary Badge */}
                     {img.isPrimary && (
-                      <span className="absolute top-1 left-1 bg-[#0B4145] text-white text-[9px] px-1.5 py-0.5 rounded font-bold">
+                      <span className="absolute top-1 left-1 bg-[#0B4145] text-white text-[9px] px-1.5 py-0.5 rounded font-bold shadow-sm z-10">
                         Main
                       </span>
                     )}
 
                     {/* Overlay Action Buttons on Hover */}
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center space-x-1">
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center space-x-1 z-20">
                       {!img.isPrimary && (
                         <button
                           type="button"
                           onClick={() => handleSetPrimaryImage(idx)}
-                          className="p-1 bg-white rounded text-[#0B4145] hover:bg-gray-100"
+                          className="p-1 bg-white rounded text-[#0B4145] hover:bg-gray-100 shadow-sm"
                           title="Set as Main Image"
                         >
                           <Check className="w-3.5 h-3.5" />
@@ -526,7 +642,7 @@ export default function ProductFormClient({
                       <button
                         type="button"
                         onClick={() => handleRemoveImage(idx)}
-                        className="p-1 bg-white rounded text-rose-600 hover:bg-gray-100"
+                        className="p-1 bg-white rounded text-rose-600 hover:bg-gray-100 shadow-sm"
                         title="Remove Image"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -536,9 +652,9 @@ export default function ProductFormClient({
                 ))}
               </div>
             ) : (
-              <div className="flex items-center space-x-2 text-xs text-[#7A7670] mt-2">
-                <ImageIcon className="w-4 h-4 stroke-1" />
-                <span>At least one image URL is required. Paste a public image link above.</span>
+              <div className="flex items-center space-x-2 text-xs text-[#7A7670] mt-3 p-3 bg-[#FBF9F5] border border-dashed border-[#D8D3C8] rounded-xl">
+                <ImageIcon className="w-4 h-4 stroke-1 text-[#7A7670]" />
+                <span>At least one product image is required. Click &quot;Upload Image from Device&quot; to begin.</span>
               </div>
             )}
           </div>

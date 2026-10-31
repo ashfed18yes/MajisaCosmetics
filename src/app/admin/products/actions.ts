@@ -3,11 +3,19 @@
 import { revalidatePath } from 'next/cache';
 import { requireAdmin } from '@/lib/auth/adminGuard';
 import { createAdminClient } from '@/lib/supabase/admin';
+import {
+  uploadProductImage,
+  deleteCloudinaryProductImage,
+  isCloudinaryConfigured,
+} from '@/lib/cloudinary';
 
 export interface ProductImageInput {
   url: string;
+  publicId?: string;
   altText?: string;
   isPrimary?: boolean;
+  width?: number | null;
+  height?: number | null;
 }
 
 export interface ProductVariantInput {
@@ -146,10 +154,12 @@ export async function createProductAction(data: ProductFormData) {
     return {
       product_id: productId,
       secure_url: img.url.trim(),
-      public_id: `img_${productId.substring(0, 8)}_${index}_${Date.now()}`,
+      public_id: img.publicId?.trim() || `img_${productId.substring(0, 8)}_${index}_${Date.now()}`,
       alt_text: img.altText?.trim() || trimmedName,
       display_order: index,
       is_primary: isPrimary,
+      width: img.width || null,
+      height: img.height || null,
     };
   });
 
@@ -266,7 +276,25 @@ export async function updateProductAction(productId: string, data: ProductFormDa
     return { success: false, error: updateError.message };
   }
 
-  // 3. Sync product images: Delete existing and re-insert updated set
+  // 3. Sync product images: Safely delete removed Cloudinary assets, then re-insert
+  const { data: existingImages } = await adminClient
+    .from('product_images')
+    .select('public_id')
+    .eq('product_id', productId);
+
+  if (existingImages && existingImages.length > 0) {
+    const retainedPublicIds = new Set(
+      data.images.map((img) => img.publicId?.trim()).filter(Boolean)
+    );
+    for (const oldImg of existingImages) {
+      if (oldImg.public_id && !retainedPublicIds.has(oldImg.public_id)) {
+        if (oldImg.public_id.startsWith('majisa-cosmetics/products/')) {
+          await deleteCloudinaryProductImage(oldImg.public_id);
+        }
+      }
+    }
+  }
+
   const { error: deleteImagesError } = await adminClient
     .from('product_images')
     .delete()
@@ -281,10 +309,12 @@ export async function updateProductAction(productId: string, data: ProductFormDa
       return {
         product_id: productId,
         secure_url: img.url.trim(),
-        public_id: `img_${productId.substring(0, 8)}_${index}_${Date.now()}`,
+        public_id: img.publicId?.trim() || `img_${productId.substring(0, 8)}_${index}_${Date.now()}`,
         alt_text: img.altText?.trim() || trimmedName,
         display_order: index,
         is_primary: isPrimary,
+        width: img.width || null,
+        height: img.height || null,
       };
     });
 
@@ -344,12 +374,28 @@ export async function toggleProductAvailabilityAction(productId: string, isAvail
 }
 
 /**
- * Deletes a product record (cascades to images and variants).
+ * Deletes a product record and cleans up associated Cloudinary assets.
  */
 export async function deleteProductAction(productId: string) {
   await requireAdmin();
   const adminClient = createAdminClient();
 
+  // 1. Retrieve all Cloudinary public_ids associated with this product
+  const { data: images } = await adminClient
+    .from('product_images')
+    .select('public_id')
+    .eq('product_id', productId);
+
+  // 2. Safely destroy Cloudinary assets
+  if (images && images.length > 0) {
+    for (const img of images) {
+      if (img.public_id && img.public_id.startsWith('majisa-cosmetics/products/')) {
+        await deleteCloudinaryProductImage(img.public_id);
+      }
+    }
+  }
+
+  // 3. Delete product (cascades to product_images and product_variants in database)
   const { error } = await adminClient
     .from('products')
     .delete()
@@ -361,6 +407,53 @@ export async function deleteProductAction(productId: string) {
 
   revalidatePath('/admin/products');
   return { success: true };
+}
+
+/**
+ * Securely uploads a product image to Cloudinary via server-side action.
+ * Strictly verifies requireAdmin() and file constraints.
+ */
+export async function uploadProductImageAction(formData: FormData) {
+  await requireAdmin();
+
+  if (!isCloudinaryConfigured()) {
+    return {
+      success: false,
+      error:
+        'Cloudinary credentials are not configured. Please add CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET in .env.local.',
+    };
+  }
+
+  const file = formData.get('file');
+  if (!file || !(file instanceof File)) {
+    return { success: false, error: 'No image file was provided.' };
+  }
+
+  // Enforce 5MB file size limit
+  if (file.size > 5 * 1024 * 1024) {
+    return { success: false, error: 'File size exceeds the 5 MB limit.' };
+  }
+
+  try {
+    const arrayBuffer = await file.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+
+    const result = await uploadProductImage(buffer, file.name);
+
+    return {
+      success: true,
+      image: {
+        url: result.secure_url,
+        publicId: result.public_id,
+        width: result.width,
+        height: result.height,
+        format: result.format,
+      },
+    };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Failed to upload image to Cloudinary.';
+    return { success: false, error: message };
+  }
 }
 
 /**
