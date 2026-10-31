@@ -4,7 +4,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Search, X, ArrowRight } from 'lucide-react';
-import { PRODUCTS, CATEGORIES, BRANDS } from '@/data/mockData';
+import { PRODUCTS as MOCK_PRODUCTS, CATEGORIES as MOCK_CATEGORIES, BRANDS as MOCK_BRANDS } from '@/data/mockData';
+import { createClient } from '@/lib/supabase/client';
+import { Product, Category, Brand } from '@/types';
 
 interface SearchModalProps {
   isOpen: boolean;
@@ -13,12 +15,78 @@ interface SearchModalProps {
 
 export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
   const [query, setQuery] = useState('');
+  const [products, setProducts] = useState<Product[]>(MOCK_PRODUCTS);
+  const [categories, setCategories] = useState<Category[]>(MOCK_CATEGORIES);
+  const [brands, setBrands] = useState<Brand[]>(MOCK_BRANDS);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (isOpen) {
       setTimeout(() => inputRef.current?.focus(), 50);
       document.body.style.overflow = 'hidden';
+
+      // Load latest live catalog from Supabase
+      try {
+        const supabase = createClient();
+        Promise.all([
+          supabase
+            .from('products')
+            .select('*, brands(name, slug), categories(name, slug), product_images(*)')
+            .eq('is_available', true),
+          supabase.from('categories').select('*').eq('is_active', true),
+          supabase.from('brands').select('*').eq('is_active', true),
+        ]).then(([{ data: rawProds }, { data: rawCats }, { data: rawBrands }]) => {
+          if (rawProds && rawProds.length > 0) {
+            const liveProds: Product[] = rawProds.map((p: any) => ({
+              id: p.id,
+              slug: p.slug,
+              name: p.name,
+              brand: p.brands?.name || 'Majisa Signature',
+              brandSlug: p.brands?.slug || 'majisa',
+              category: p.categories?.name || 'General',
+              categorySlug: p.categories?.slug || 'all',
+              price: Number(p.base_price),
+              originalPrice: p.original_price ? Number(p.original_price) : undefined,
+              rating: Number(p.rating || 5.0),
+              reviewCount: Number(p.review_count || 0),
+              description: p.description || '',
+              details: [],
+              images: (p.product_images || []).map((img: any) => img.secure_url).filter(Boolean),
+              isAvailable: p.is_available,
+            }));
+            const liveSlugs = new Set(liveProds.map((p) => p.slug));
+            setProducts([...liveProds, ...MOCK_PRODUCTS.filter((m) => !liveSlugs.has(m.slug))]);
+          }
+
+          if (rawCats && rawCats.length > 0) {
+            const liveCats: Category[] = rawCats.map((c: any) => ({
+              id: c.id,
+              slug: c.slug,
+              name: c.name,
+              tagline: c.tagline || '',
+              description: c.description || '',
+              image: c.image_url || '',
+            }));
+            const liveSlugs = new Set(liveCats.map((c) => c.slug));
+            setCategories([...liveCats, ...MOCK_CATEGORIES.filter((m) => !liveSlugs.has(m.slug))]);
+          }
+
+          if (rawBrands && rawBrands.length > 0) {
+            const liveBrands: Brand[] = rawBrands.map((b: any) => ({
+              id: b.id,
+              slug: b.slug,
+              name: b.name,
+              tagline: b.tagline || '',
+              description: b.description || '',
+              logo: b.logo_url || '',
+              banner: b.banner_url || '',
+              origin: b.origin || 'Jaipur',
+            }));
+            const liveSlugs = new Set(liveBrands.map((b) => b.slug));
+            setBrands([...liveBrands, ...MOCK_BRANDS.filter((m) => !liveSlugs.has(m.slug))]);
+          }
+        });
+      } catch {}
     } else {
       document.body.style.overflow = 'unset';
     }
@@ -32,7 +100,7 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
   const trimmed = query.trim().toLowerCase();
 
   const matchedProducts = trimmed
-    ? PRODUCTS.filter(
+    ? products.filter(
         (p) =>
           p.name.toLowerCase().includes(trimmed) ||
           p.brand.toLowerCase().includes(trimmed) ||
@@ -41,7 +109,7 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
     : [];
 
   const matchedCategories = trimmed
-    ? CATEGORIES.filter(
+    ? categories.filter(
         (c) =>
           c.name.toLowerCase().includes(trimmed) ||
           c.description.toLowerCase().includes(trimmed)
@@ -49,7 +117,7 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
     : [];
 
   const matchedBrands = trimmed
-    ? BRANDS.filter(
+    ? brands.filter(
         (b) =>
           b.name.toLowerCase().includes(trimmed) ||
           b.description.toLowerCase().includes(trimmed)
@@ -115,7 +183,7 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
                 Featured Categories
               </p>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                {CATEGORIES.slice(0, 6).map((cat) => (
+                {categories.slice(0, 6).map((cat: Category) => (
                   <Link
                     key={cat.id}
                     href={`/collections/${cat.slug}`}

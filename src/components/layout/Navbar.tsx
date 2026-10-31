@@ -24,6 +24,7 @@ export default function Navbar() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isCatDropdownOpen, setIsCatDropdownOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<SupabaseUser | null>(null);
+  const [categories, setCategories] = useState<any[]>(CATEGORIES);
 
   useEffect(() => {
     try {
@@ -32,6 +33,25 @@ export default function Navbar() {
       supabase.auth.getUser().then(({ data }) => {
         setCurrentUser(data.user);
       });
+
+      // Fetch live categories from Supabase
+      supabase
+        .from('categories')
+        .select('id, name, slug')
+        .eq('is_active', true)
+        .order('display_order', { ascending: true })
+        .then(({ data }) => {
+          if (data && data.length > 0) {
+            const liveCats = data.map((c: any) => ({
+              id: c.id,
+              name: c.name,
+              slug: c.slug,
+            }));
+            const liveSlugs = new Set(liveCats.map((c) => c.slug));
+            const mockNonConflicting = CATEGORIES.filter((m) => !liveSlugs.has(m.slug));
+            setCategories([...liveCats, ...mockNonConflicting]);
+          }
+        });
 
       const {
         data: { subscription },
@@ -131,7 +151,7 @@ export default function Navbar() {
               {isCatDropdownOpen && (
                 <div className="absolute top-full -left-4 w-56 pt-2.5 z-50 animate-in fade-in zoom-in-95 duration-150">
                   <div className="bg-white border border-[#D4E5E3] rounded-[20px] shadow-[0_14px_32px_rgba(11,65,69,0.12)] py-2.5 px-2">
-                    {CATEGORIES.map((cat) => (
+                    {categories.map((cat) => (
                       <Link
                         key={cat.id}
                         href={`/collections/${cat.slug}`}
@@ -281,7 +301,7 @@ export default function Navbar() {
                   <span className="text-xs uppercase font-extrabold text-[#687F8D] tracking-wider block mb-1">
                     Categories
                   </span>
-                  {CATEGORIES.map((cat) => (
+                  {categories.map((cat) => (
                     <Link
                       key={cat.id}
                       href={`/collections/${cat.slug}`}

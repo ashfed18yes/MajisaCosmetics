@@ -3,22 +3,23 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { ChevronRight, MapPin, Calendar, Sparkles } from 'lucide-react';
-import { getBrandBySlug, getProductsByBrand, BRANDS } from '@/data/mockData';
+import {
+  getStorefrontBrandBySlug,
+  getStorefrontProductsByBrand,
+  getStorefrontBrands,
+} from '@/lib/products';
 import ProductGrid from '@/components/product/ProductGrid';
 
 interface BrandPageProps {
   params: Promise<{ slug: string }>;
 }
 
-export async function generateStaticParams() {
-  return BRANDS.map((brand) => ({
-    slug: brand.slug,
-  }));
-}
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 export async function generateMetadata({ params }: BrandPageProps) {
   const { slug } = await params;
-  const brand = getBrandBySlug(slug);
+  const brand = await getStorefrontBrandBySlug(slug);
   if (!brand) return { title: 'Brand Not Found | Majisa Cosmetics' };
 
   return {
@@ -29,13 +30,16 @@ export async function generateMetadata({ params }: BrandPageProps) {
 
 export default async function BrandPage({ params }: BrandPageProps) {
   const { slug } = await params;
-  const brand = getBrandBySlug(slug);
+  const brand = await getStorefrontBrandBySlug(slug);
 
   if (!brand) {
     notFound();
   }
 
-  const products = getProductsByBrand(brand.slug);
+  const [products, allBrands] = await Promise.all([
+    getStorefrontProductsByBrand(brand.slug),
+    getStorefrontBrands(),
+  ]);
 
   return (
     <div className="space-y-9 sm:space-y-12 pb-16 sm:pb-20">
@@ -130,7 +134,7 @@ export default async function BrandPage({ params }: BrandPageProps) {
           Explore Other Prestigious Brands
         </h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6">
-          {BRANDS.filter((b) => b.slug !== brand.slug).slice(0, 3).map((other) => (
+          {allBrands.filter((b) => b.slug !== brand.slug).slice(0, 3).map((other) => (
             <Link
               key={other.id}
               href={`/brands/${other.slug}`}

@@ -202,6 +202,7 @@ export async function createProductAction(data: ProductFormData) {
   revalidatePath('/collections');
   revalidatePath('/brands');
   revalidatePath('/');
+  revalidatePath(`/products/${slug}`);
 
   return { success: true, productId };
 }

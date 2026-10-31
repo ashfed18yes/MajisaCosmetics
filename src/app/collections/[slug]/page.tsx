@@ -3,22 +3,23 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { ChevronRight } from 'lucide-react';
-import { getCategoryBySlug, getProductsByCategory, CATEGORIES } from '@/data/mockData';
+import {
+  getStorefrontCategoryBySlug,
+  getStorefrontProductsByCategory,
+  getStorefrontCategories,
+} from '@/lib/products';
 import ProductGrid from '@/components/product/ProductGrid';
 
 interface CategoryPageProps {
   params: Promise<{ slug: string }>;
 }
 
-export async function generateStaticParams() {
-  return CATEGORIES.map((cat) => ({
-    slug: cat.slug,
-  }));
-}
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 export async function generateMetadata({ params }: CategoryPageProps) {
   const { slug } = await params;
-  const category = getCategoryBySlug(slug);
+  const category = await getStorefrontCategoryBySlug(slug);
   if (!category) return { title: 'Category Not Found | Majisa Cosmetics' };
 
   return {
@@ -29,13 +30,16 @@ export async function generateMetadata({ params }: CategoryPageProps) {
 
 export default async function CategoryPage({ params }: CategoryPageProps) {
   const { slug } = await params;
-  const category = getCategoryBySlug(slug);
+  const category = await getStorefrontCategoryBySlug(slug);
 
   if (!category) {
     notFound();
   }
 
-  const products = getProductsByCategory(category.slug);
+  const [products, allCategories] = await Promise.all([
+    getStorefrontProductsByCategory(category.slug),
+    getStorefrontCategories(),
+  ]);
 
   return (
     <div className="space-y-9 sm:space-y-12 pb-16 sm:pb-20">
@@ -113,7 +117,7 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
           Explore Other Categories
         </h3>
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3.5 sm:gap-4">
-          {CATEGORIES.filter((c) => c.slug !== category.slug).slice(0, 5).map((sibling) => (
+          {allCategories.filter((c) => c.slug !== category.slug).slice(0, 5).map((sibling) => (
             <Link
               key={sibling.id}
               href={`/collections/${sibling.slug}`}
