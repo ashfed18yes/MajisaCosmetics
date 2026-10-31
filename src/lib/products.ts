@@ -1,7 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { Product, Category, Brand, ProductVariant, ProductSize } from '@/types';
 import {
-  PRODUCTS as MOCK_PRODUCTS,
   CATEGORIES as MOCK_CATEGORIES,
   BRANDS as MOCK_BRANDS,
 } from '@/data/mockData';
@@ -107,8 +106,8 @@ function mapSupabaseBrand(b: any): Brand {
 }
 
 /**
- * Fetches all available products from Supabase and merges them with mock fallback products.
- * Supabase products appear first and take precedence.
+ * Fetches all available products exclusively from Supabase.
+ * Returns only real database products; returns empty array if none exist or on error.
  */
 export async function getStorefrontProducts(): Promise<Product[]> {
   try {
@@ -127,24 +126,20 @@ export async function getStorefrontProducts(): Promise<Product[]> {
 
     if (error) {
       console.error('Error fetching Supabase storefront products:', error);
-      return MOCK_PRODUCTS;
+      return [];
     }
 
     const liveProducts = (rawProducts || []).map(mapSupabaseProduct);
-
-    // Merge: live products first, then non-conflicting mock products
-    const liveSlugs = new Set(liveProducts.map((p) => p.slug));
-    const nonConflictingMock = MOCK_PRODUCTS.filter((m) => !liveSlugs.has(m.slug));
-
-    return [...liveProducts, ...nonConflictingMock];
+    return liveProducts;
   } catch (err) {
     console.error('Unexpected error in getStorefrontProducts:', err);
-    return MOCK_PRODUCTS;
+    return [];
   }
 }
 
 /**
- * Retrieves a single product by its URL slug.
+ * Retrieves a single product by its URL slug directly from Supabase.
+ * Returns null if not found or on error (no mock fallback).
  */
 export async function getStorefrontProductBySlug(slug: string): Promise<Product | null> {
   if (!slug) return null;
@@ -168,13 +163,10 @@ export async function getStorefrontProductBySlug(slug: string): Promise<Product 
       return mapSupabaseProduct(rawProduct);
     }
 
-    // Fallback to mock data
-    const mockMatch = MOCK_PRODUCTS.find((p) => p.slug === slug);
-    return mockMatch || null;
+    return null;
   } catch (err) {
     console.error('Error fetching product by slug:', slug, err);
-    const mockMatch = MOCK_PRODUCTS.find((p) => p.slug === slug);
-    return mockMatch || null;
+    return null;
   }
 }
 

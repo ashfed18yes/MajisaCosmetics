@@ -158,44 +158,63 @@ export default function HomePageClient({
             <button
               type="button"
               onClick={() => setActiveTab('bestsellers')}
-              className={`px-5 sm:px-6 py-2 rounded-full text-xs sm:text-sm font-bold transition-all ${
-                activeTab === 'bestsellers'
+              className={`px-5 sm:px-6 py-2 rounded-full text-xs sm:text-sm font-bold transition-all ${activeTab === 'bestsellers'
                   ? 'bg-[#128F92] text-white shadow-cta'
                   : 'text-[#687F8D] hover:text-[#0B4145]'
-              }`}
+                }`}
             >
               Bestsellers
             </button>
             <button
               type="button"
               onClick={() => setActiveTab('new')}
-              className={`px-5 sm:px-6 py-2 rounded-full text-xs sm:text-sm font-bold transition-all ${
-                activeTab === 'new'
+              className={`px-5 sm:px-6 py-2 rounded-full text-xs sm:text-sm font-bold transition-all ${activeTab === 'new'
                   ? 'bg-[#128F92] text-white shadow-cta'
                   : 'text-[#687F8D] hover:text-[#0B4145]'
-              }`}
+                }`}
             >
               New Arrivals
             </button>
           </div>
         </div>
 
-        {/* Calibrated Product Cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2.5 sm:gap-4 md:gap-5 lg:gap-6">
-          {displayedProducts.slice(0, 8).map((product) => (
-            <ProductCard key={product.id} product={product} />
-          ))}
-        </div>
+        {/* Calibrated Product Cards or Clean Empty State */}
+        {displayedProducts.length === 0 ? (
+          <div className="text-center py-14 px-6 bg-white rounded-[26px] border border-[#D4E5E3] shadow-card max-w-lg mx-auto">
+            <Sparkles className="w-8 h-8 text-[#128F92] mx-auto mb-3" />
+            <h3 className="font-serif text-2xl font-bold text-[#0B4145] mb-2">
+              New Formulations Arriving Soon
+            </h3>
+            <p className="text-sm text-[#687F8D] font-medium mb-6">
+              Our master ateliers are currently formulating and preparing our upcoming batches.
+            </p>
+            <Link
+              href="/collections"
+              className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full bg-[#128F92] text-white text-xs font-bold uppercase tracking-wider hover:bg-[#0B4145] transition-colors shadow-cta"
+            >
+              <span>Explore Collections</span>
+              <ArrowRight className="w-4 h-4" />
+            </Link>
+          </div>
+        ) : (
+          <>
+            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2.5 sm:gap-4 md:gap-5 lg:gap-6">
+              {displayedProducts.slice(0, 8).map((product) => (
+                <ProductCard key={product.id} product={product} />
+              ))}
+            </div>
 
-        <div className="text-center mt-8 sm:mt-10">
-          <Link
-            href="/collections"
-            className="inline-flex items-center gap-2.5 h-[44px] sm:h-[46px] px-7 sm:px-8 rounded-full bg-white hover:bg-[#DDF3F2] text-[#0B4145] border border-[#D4E5E3] text-xs sm:text-sm uppercase tracking-wider font-bold transition-all shadow-card hover:scale-102"
-          >
-            <span>Explore Entire Catalogue</span>
-            <ArrowRight className="w-4 h-4" />
-          </Link>
-        </div>
+            <div className="text-center mt-8 sm:mt-10">
+              <Link
+                href="/collections"
+                className="inline-flex items-center gap-2.5 h-[44px] sm:h-[46px] px-7 sm:px-8 rounded-full bg-white hover:bg-[#DDF3F2] text-[#0B4145] border border-[#D4E5E3] text-xs sm:text-sm uppercase tracking-wider font-bold transition-all shadow-card hover:scale-102"
+              >
+                <span>Explore Entire Catalogue</span>
+                <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
+          </>
+        )}
       </section>
 
       {/* 4. Soft Aqua Feature: The Majisa Standard */}

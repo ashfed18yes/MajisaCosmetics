@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Search, X, ArrowRight } from 'lucide-react';
-import { PRODUCTS as MOCK_PRODUCTS, CATEGORIES as MOCK_CATEGORIES, BRANDS as MOCK_BRANDS } from '@/data/mockData';
+import { CATEGORIES as MOCK_CATEGORIES, BRANDS as MOCK_BRANDS } from '@/data/mockData';
 import { createClient } from '@/lib/supabase/client';
 import { Product, Category, Brand } from '@/types';
 
@@ -15,7 +15,7 @@ interface SearchModalProps {
 
 export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
   const [query, setQuery] = useState('');
-  const [products, setProducts] = useState<Product[]>(MOCK_PRODUCTS);
+  const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>(MOCK_CATEGORIES);
   const [brands, setBrands] = useState<Brand[]>(MOCK_BRANDS);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -54,8 +54,9 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
               images: (p.product_images || []).map((img: any) => img.secure_url).filter(Boolean),
               isAvailable: p.is_available,
             }));
-            const liveSlugs = new Set(liveProds.map((p) => p.slug));
-            setProducts([...liveProds, ...MOCK_PRODUCTS.filter((m) => !liveSlugs.has(m.slug))]);
+            setProducts(liveProds);
+          } else {
+            setProducts([]);
           }
 
           if (rawCats && rawCats.length > 0) {
@@ -124,7 +125,7 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
       ).slice(0, 3)
     : [];
 
-  const popularSearches = ['Velvet Matte', 'Hyaluronic Elixir', 'SPF 50', 'Rose Oud', 'Lumière', 'Palette'];
+  const popularSearches = ['Velvet', 'FaceWash', 'Plix', 'Skincare', 'Lipsticks'];
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center pt-16 sm:pt-20 px-4 bg-[#0B4145]/40 backdrop-blur-sm transition-opacity">
@@ -294,10 +295,10 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
                 matchedCategories.length === 0 && (
                   <div className="text-center py-10">
                     <p className="text-sm text-[#0B4145] font-bold mb-1">
-                      No results found for &ldquo;{query}&rdquo;
+                      No products found
                     </p>
                     <p className="text-xs text-[#687F8D]">
-                      Try searching with different terms like &ldquo;lipstick&rdquo;, &ldquo;elixir&rdquo;, or &ldquo;sunscreen&rdquo;.
+                      Try searching with different terms like &ldquo;Velvet&rdquo;, &ldquo;FaceWash&rdquo;, or &ldquo;Plix&rdquo;.
                     </p>
                   </div>
                 )}

@@ -357,6 +357,12 @@ export default function CollectionsClient({
           <ProductGrid
             products={displayedProducts}
             onResetFilters={hasActiveFilters ? handleResetFilters : undefined}
+            emptyTitle={initialProducts.length === 0 ? 'Products coming soon.' : 'No Formulations Found'}
+            emptyDescription={
+              initialProducts.length === 0
+                ? 'Our real catalog is being prepared. Check back soon for our latest arrivals.'
+                : 'We could not find any products matching your selected criteria. Try adjusting or clearing your filters.'
+            }
             columns="grid-cols-2 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 2xl:grid-cols-4"
           />
 

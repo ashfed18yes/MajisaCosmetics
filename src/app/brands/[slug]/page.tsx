@@ -123,8 +123,8 @@ export default async function BrandPage({ params }: BrandPageProps) {
         <ProductGrid
           products={products}
           columns="grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
-          emptyTitle={`No products currently available for ${brand.name}`}
-          emptyDescription="This brand atelier is currently formulating new seasonal offerings."
+          emptyTitle="Products coming soon."
+          emptyDescription={`No products currently available for ${brand.name}. Check back soon for new arrivals.`}
         />
       </div>
 
