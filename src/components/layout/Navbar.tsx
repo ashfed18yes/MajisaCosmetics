@@ -19,6 +19,12 @@ import type { User as SupabaseUser } from '@supabase/supabase-js';
 
 export default function Navbar() {
   const pathname = usePathname();
+
+  // Do not render storefront customer navbar on admin routes
+  if (pathname?.startsWith('/admin')) {
+    return null;
+  }
+
   const { totalItems, setIsCartOpen } = useCart();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);

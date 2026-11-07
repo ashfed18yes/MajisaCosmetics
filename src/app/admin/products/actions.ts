@@ -188,10 +188,24 @@ export async function createProductAction(data: ProductFormData) {
       : Promise.resolve({ error: null }),
   ]);
 
+  // Helper to safely roll back all created records for this product on failure
+  const rollbackProductCreation = async (id: string) => {
+    try {
+      // Explicitly delete any inserted images and variants first, then the product
+      await Promise.allSettled([
+        adminClient.from('product_images').delete().eq('product_id', id),
+        adminClient.from('product_variants').delete().eq('product_id', id),
+      ]);
+      await adminClient.from('products').delete().eq('id', id);
+    } catch (cleanupErr) {
+      console.error('Error during rollback of product creation:', cleanupErr);
+    }
+  };
+
   if (imagesInsertRes.error) {
     console.error('Failed to insert product images:', imagesInsertRes.error);
-    // ATOMICITY: Clean up orphaned product if image insertion fails so no inconsistent records remain
-    await adminClient.from('products').delete().eq('id', productId);
+    // ATOMICITY: Clean up orphaned product & related records if image insertion fails
+    await rollbackProductCreation(productId);
     return {
       success: false,
       error: `Failed to save product images: ${imagesInsertRes.error.message}`,
@@ -200,6 +214,12 @@ export async function createProductAction(data: ProductFormData) {
 
   if (variantsInsertRes.error) {
     console.error('Failed to insert product variants:', variantsInsertRes.error);
+    // ATOMICITY: Roll back product and all associated images so the product is not left without its intended variants
+    await rollbackProductCreation(productId);
+    return {
+      success: false,
+      error: `Failed to save product variants: ${variantsInsertRes.error.message}`,
+    };
   }
 
   revalidatePath('/admin/products');

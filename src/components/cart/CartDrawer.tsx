@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 import {
   X,
   Trash2,
@@ -18,6 +19,7 @@ import {
 import { useCart } from '@/context/CartContext';
 
 export default function CartDrawer() {
+  const router = useRouter();
   const {
     cart,
     isCartOpen,
@@ -30,6 +32,12 @@ export default function CartDrawer() {
   } = useCart();
 
   const [isMobileSummaryExpanded, setIsMobileSummaryExpanded] = useState(false);
+
+  const handleProceedToCheckout = () => {
+    setIsCartOpen(false);
+    setIsMobileSummaryExpanded(false);
+    router.push('/checkout');
+  };
 
   useEffect(() => {
     if (isCartOpen) {
@@ -282,9 +290,7 @@ export default function CartDrawer() {
               <div className="space-y-2.5">
                 <button
                   type="button"
-                  onClick={() => {
-                    alert('Order checkout will be connected with payment processing in the next phase.');
-                  }}
+                  onClick={handleProceedToCheckout}
                   className="w-full h-[48px] sm:h-[50px] px-6 rounded-full bg-[#128F92] hover:bg-[#0B4145] text-white text-sm sm:text-base font-bold tracking-wide transition-all flex items-center justify-center gap-2.5 shadow-cta hover:scale-[1.01]"
                 >
                   <span>Proceed to Checkout</span>
@@ -419,9 +425,7 @@ export default function CartDrawer() {
               <div className="space-y-2.5 pt-0.5">
                 <button
                   type="button"
-                  onClick={() => {
-                    alert('Order checkout will be connected with payment processing in the next phase.');
-                  }}
+                  onClick={handleProceedToCheckout}
                   className="w-full h-[46px] px-6 rounded-full bg-[#128F92] hover:bg-[#0B4145] text-white text-xs uppercase tracking-wider font-bold transition-all flex items-center justify-center gap-2 shadow-cta active:scale-98"
                 >
                   <span>Proceed to Checkout</span>

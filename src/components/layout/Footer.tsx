@@ -2,11 +2,19 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { Mail, Phone, MapPin, ArrowRight, CheckCircle2, Shield, HeartHandshake, Sparkles, MessageCircle } from 'lucide-react';
 import { CATEGORIES } from '@/data/mockData';
 import { CONTACT_INFO } from '@/config/contact';
 
 export default function Footer() {
+  const pathname = usePathname();
+
+  // Do not render storefront footer on admin routes
+  if (pathname?.startsWith('/admin')) {
+    return null;
+  }
+
   const [newsletterEmail, setNewsletterEmail] = useState('');
   const [isSubscribed, setIsSubscribed] = useState(false);
 
