@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo, useTransition } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   Search,
   Eye,
@@ -147,6 +148,7 @@ interface AdminCodOrdersClientProps {
 export default function AdminCodOrdersClient({
   initialLiveOrders = [],
 }: AdminCodOrdersClientProps) {
+  const router = useRouter();
   // Always default to real live database COD orders
   const [dataMode, setDataMode] = useState<'live' | 'sample'>('live');
   const [activeTab, setActiveTab] = useState<'All' | 'Processing' | 'Shipped' | 'Pending' | 'Cancelled'>('All');
@@ -244,9 +246,13 @@ export default function AdminCodOrdersClient({
                 displayStatus: 'Processing',
                 paymentStatus: 'advance_paid',
                 advancePaid: 100,
+                activePayment: prev.activePayment
+                  ? { ...prev.activePayment, verificationStatus: 'verified' }
+                  : null,
               }
             : null
         );
+        router.refresh();
       }
     });
   };
@@ -282,6 +288,7 @@ export default function AdminCodOrdersClient({
               }
             : null
         );
+        router.refresh();
       }
     });
   };
@@ -319,6 +326,18 @@ export default function AdminCodOrdersClient({
       } else {
         setActionSuccess('Advance payment rejected.');
         setShowRejectInput(false);
+        setSelectedOrder((prev) =>
+          prev
+            ? {
+                ...prev,
+                paymentStatus: 'pending',
+                activePayment: prev.activePayment
+                  ? { ...prev.activePayment, verificationStatus: 'rejected' }
+                  : null,
+              }
+            : null
+        );
+        router.refresh();
       }
     });
   };
@@ -346,6 +365,25 @@ export default function AdminCodOrdersClient({
         setActionError(res.error || 'Failed to update order status.');
       } else {
         setActionSuccess(`Status updated to ${newStatus}.`);
+        const targetDisplay: 'Processing' | 'Shipped' | 'Pending' | 'Cancelled' =
+          newStatus === 'Processing'
+            ? 'Processing'
+            : newStatus === 'Dispatched'
+            ? 'Shipped'
+            : newStatus === 'Delivered'
+            ? 'Shipped'
+            : 'Cancelled';
+
+        setSelectedOrder((prev) =>
+          prev
+            ? {
+                ...prev,
+                status: newStatus,
+                displayStatus: targetDisplay,
+              }
+            : null
+        );
+        router.refresh();
       }
     });
   };
@@ -354,25 +392,25 @@ export default function AdminCodOrdersClient({
     switch (displayStatus) {
       case 'Processing':
         return (
-          <span className="inline-block text-center min-w-[86px] px-3.5 py-1 text-xs font-semibold rounded-full bg-[#2563EB] text-white shadow-xs">
+          <span className="inline-block text-center min-w-[76px] px-2.5 py-0.5 text-[11px] font-semibold rounded-full bg-[#2563EB] text-white shadow-xs">
             Processing
           </span>
         );
       case 'Shipped':
         return (
-          <span className="inline-block text-center min-w-[86px] px-3.5 py-1 text-xs font-semibold rounded-full bg-[#10B981] text-white shadow-xs">
+          <span className="inline-block text-center min-w-[76px] px-2.5 py-0.5 text-[11px] font-semibold rounded-full bg-[#10B981] text-white shadow-xs">
             Shipped
           </span>
         );
       case 'Pending':
         return (
-          <span className="inline-block text-center min-w-[86px] px-3.5 py-1 text-xs font-semibold rounded-full bg-[#F59E0B] text-white shadow-xs">
+          <span className="inline-block text-center min-w-[76px] px-2.5 py-0.5 text-[11px] font-semibold rounded-full bg-[#F59E0B] text-white shadow-xs">
             Pending
           </span>
         );
       case 'Cancelled':
         return (
-          <span className="inline-block text-center min-w-[86px] px-3.5 py-1 text-xs font-semibold rounded-full bg-[#E11D48] text-white shadow-xs">
+          <span className="inline-block text-center min-w-[76px] px-2.5 py-0.5 text-[11px] font-semibold rounded-full bg-[#E11D48] text-white shadow-xs">
             Cancelled
           </span>
         );
@@ -380,24 +418,24 @@ export default function AdminCodOrdersClient({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* Page Header: Title, Subtitle, and Export Button */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 className="text-2xl sm:text-[28px] font-bold text-slate-900 tracking-tight">
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
             COD Orders Management
           </h1>
-          <p className="text-sm text-slate-500 mt-1">
+          <p className="text-xs text-slate-500 mt-0.5">
             Track ₹100 delivery advance verifications and doorstep cash collections
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5">
           <div className="flex items-center bg-slate-100 p-1 rounded-xl text-xs font-medium text-slate-600">
             <button
               type="button"
               onClick={() => setDataMode('live')}
-              className={`px-3 py-1.5 rounded-lg transition-all ${
+              className={`px-2.5 py-1 rounded-lg transition-all ${
                 dataMode === 'live'
                   ? 'bg-white text-slate-900 font-semibold shadow-xs'
                   : 'hover:text-slate-900'
@@ -408,7 +446,7 @@ export default function AdminCodOrdersClient({
             <button
               type="button"
               onClick={() => setDataMode('sample')}
-              className={`px-3 py-1.5 rounded-lg transition-all ${
+              className={`px-2.5 py-1 rounded-lg transition-all ${
                 dataMode === 'sample'
                   ? 'bg-white text-slate-900 font-semibold shadow-xs'
                   : 'hover:text-slate-900'
@@ -421,9 +459,9 @@ export default function AdminCodOrdersClient({
           <button
             type="button"
             onClick={() => alert('Exporting COD report...')}
-            className="flex items-center gap-2 bg-[#2563EB] hover:bg-blue-700 text-white text-sm font-medium px-5 py-2.5 rounded-xl shadow-xs transition-colors"
+            className="flex items-center gap-1.5 bg-[#2563EB] hover:bg-blue-700 text-white text-xs sm:text-sm font-medium px-4 py-2 rounded-xl shadow-xs transition-colors"
           >
-            <Download className="w-4 h-4 text-white" />
+            <Download className="w-3.5 h-3.5 text-white" />
             <span>Export COD</span>
           </button>
         </div>
@@ -431,7 +469,7 @@ export default function AdminCodOrdersClient({
 
       {/* Prominent Banner when viewing Sample Preview */}
       {dataMode === 'sample' && (
-        <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-center justify-between text-xs text-amber-800 animate-in fade-in duration-150">
+        <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-xl flex items-center justify-between text-xs text-amber-800 animate-in fade-in duration-150">
           <div className="flex items-center gap-2">
             <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
             <span>
@@ -449,20 +487,20 @@ export default function AdminCodOrdersClient({
       )}
 
       {/* Main White Card Container */}
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-[0_2px_12px_rgba(0,0,0,0.03)] p-6 sm:p-7">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 pb-6 border-b border-slate-100">
+      <div className="bg-white rounded-xl border border-slate-100 shadow-[0_2px_12px_rgba(0,0,0,0.03)] p-4 sm:p-5">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 pb-4 border-b border-slate-100">
           <div className="relative w-full md:w-64">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search COD orders..."
-              className="w-full pl-10 pr-3.5 py-2 bg-slate-50/70 border border-slate-200/80 rounded-xl text-xs sm:text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+              className="w-full pl-9 pr-3 py-1.5 bg-slate-50/70 border border-slate-200/80 rounded-xl text-xs sm:text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
             />
           </div>
 
-          <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto pb-1 md:pb-0">
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0">
             {(['All', 'Processing', 'Shipped', 'Pending', 'Cancelled'] as const).map((tab) => {
               const isActive = activeTab === tab;
               return (
@@ -470,7 +508,7 @@ export default function AdminCodOrdersClient({
                   key={tab}
                   type="button"
                   onClick={() => setActiveTab(tab)}
-                  className={`text-xs font-semibold px-4 py-1.5 rounded-full transition-all shrink-0 ${
+                  className={`text-xs font-semibold px-3 py-1 rounded-full transition-all shrink-0 ${
                     isActive
                       ? 'bg-[#2563EB] text-white shadow-xs'
                       : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'
@@ -484,25 +522,25 @@ export default function AdminCodOrdersClient({
         </div>
 
         {/* Structured Table */}
-        <div className="overflow-x-auto mt-2">
-          <table className="w-full text-left border-collapse">
+        <div className="overflow-x-auto mt-1">
+          <table className="w-full text-left border-collapse text-xs">
             <thead>
               <tr className="border-b border-slate-100">
-                <th className="py-4 px-2 text-xs font-semibold text-slate-500">Order ID</th>
-                <th className="py-4 px-4 text-xs font-semibold text-slate-500">Customer</th>
-                <th className="py-4 px-4 text-xs font-semibold text-slate-500">Items</th>
-                <th className="py-4 px-4 text-xs font-semibold text-slate-500 text-center">Status</th>
-                <th className="py-4 px-4 text-xs font-semibold text-slate-500">Advance (₹100)</th>
-                <th className="py-4 px-4 text-xs font-semibold text-slate-500">Balance Due</th>
-                <th className="py-4 px-4 text-xs font-semibold text-slate-500">Date</th>
-                <th className="py-4 px-2 text-xs font-semibold text-slate-500 text-right">Actions</th>
+                <th className="py-2.5 px-2 font-semibold text-slate-500">Order ID</th>
+                <th className="py-2.5 px-3 font-semibold text-slate-500">Customer</th>
+                <th className="py-2.5 px-3 font-semibold text-slate-500">Items</th>
+                <th className="py-2.5 px-3 font-semibold text-slate-500 text-center">Status</th>
+                <th className="py-2.5 px-3 font-semibold text-slate-500">Advance (₹100)</th>
+                <th className="py-2.5 px-3 font-semibold text-slate-500">Balance Due</th>
+                <th className="py-2.5 px-3 font-semibold text-slate-500">Date</th>
+                <th className="py-2.5 px-2 font-semibold text-slate-500 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {filteredOrders.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="py-16 text-center">
-                    <p className="text-sm font-semibold text-slate-700">
+                  <td colSpan={8} className="py-12 text-center">
+                    <p className="text-xs sm:text-sm font-semibold text-slate-700">
                       {dataMode === 'live' ? 'No live COD orders found' : 'No sample orders match the filter'}
                     </p>
                     <p className="text-xs text-slate-400 mt-1 max-w-md mx-auto">
@@ -519,31 +557,31 @@ export default function AdminCodOrdersClient({
                     onClick={() => handleInspectOrder(order)}
                     className="hover:bg-slate-50/60 cursor-pointer transition-colors group"
                   >
-                    <td className="py-4 px-2 text-sm font-bold text-slate-900 whitespace-nowrap">
+                    <td className="py-2.5 px-2 text-xs sm:text-sm font-bold text-slate-900 whitespace-nowrap">
                       {order.orderNumber}
                     </td>
-                    <td className="py-4 px-4 text-sm font-medium text-slate-700 whitespace-nowrap">
+                    <td className="py-2.5 px-3 text-xs sm:text-sm font-medium text-slate-700 whitespace-nowrap">
                       {order.customerName}
                     </td>
-                    <td className="py-4 px-4 text-sm text-slate-500 whitespace-nowrap">
+                    <td className="py-2.5 px-3 text-xs text-slate-500 whitespace-nowrap">
                       {order.itemsCountText}
                     </td>
-                    <td className="py-4 px-4 text-center whitespace-nowrap">
+                    <td className="py-2.5 px-3 text-center whitespace-nowrap">
                       {renderStatusBadge(order.displayStatus)}
                     </td>
-                    <td className="py-4 px-4 text-sm font-semibold whitespace-nowrap">
+                    <td className="py-2.5 px-3 text-xs font-semibold whitespace-nowrap">
                       <span className={order.advancePaid > 0 ? 'text-emerald-600' : 'text-amber-600'}>
                         {order.advancePaid > 0 ? '₹100 Paid' : '₹100 Pending'}
                       </span>
                     </td>
-                    <td className="py-4 px-4 text-sm font-bold text-slate-900 whitespace-nowrap">
+                    <td className="py-2.5 px-3 text-xs sm:text-sm font-bold text-slate-900 whitespace-nowrap">
                       ₹{order.balanceDue.toFixed(2)}
                     </td>
-                    <td className="py-4 px-4 text-sm text-slate-500 whitespace-nowrap">
+                    <td className="py-2.5 px-3 text-xs text-slate-500 whitespace-nowrap">
                       {order.date}
                     </td>
-                    <td className="py-4 px-2 text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
-                      <div className="flex items-center justify-end gap-2 text-slate-400">
+                    <td className="py-2.5 px-2 text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex items-center justify-end gap-1 text-slate-400">
                         {/* Eye / View details icon */}
                         <Link
                           href={order.isSampleData ? '#' : `/admin/orders/${order.id}`}
@@ -556,7 +594,7 @@ export default function AdminCodOrdersClient({
                           title="Open full order details and fulfillment page"
                           className="p-1 hover:text-[#2563EB] hover:bg-blue-50 rounded-lg transition-colors text-slate-400"
                         >
-                          <Eye className="w-4 h-4" />
+                          <Eye className="w-3.5 h-3.5" />
                         </Link>
                         <button
                           type="button"
@@ -564,7 +602,7 @@ export default function AdminCodOrdersClient({
                           title="Quick Actions"
                           className="p-1 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
                         >
-                          <SquarePen className="w-4 h-4" />
+                          <SquarePen className="w-3.5 h-3.5" />
                         </button>
                         <button
                           type="button"
@@ -572,7 +610,7 @@ export default function AdminCodOrdersClient({
                           title="More options"
                           className="p-1 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
                         >
-                          <MoreHorizontal className="w-4 h-4" />
+                          <MoreHorizontal className="w-3.5 h-3.5" />
                         </button>
                       </div>
                     </td>

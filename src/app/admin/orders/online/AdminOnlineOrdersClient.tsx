@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo, useTransition } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   Search,
   Eye,
@@ -40,7 +41,7 @@ export interface AdminOrderRow {
   customerEmail: string;
   customerPhone: string;
   itemsCountText: string;
-  status: 'Processing' | 'Shipped' | 'Pending' | 'Cancelled' | 'Confirmed' | 'Delivered' | 'Awaiting Payment' | 'Payment Action Required';
+  status: 'Processing' | 'Shipped' | 'Dispatched' | 'Pending' | 'Cancelled' | 'Confirmed' | 'Delivered' | 'Awaiting Payment' | 'Payment Action Required';
   displayStatus: 'Processing' | 'Shipped' | 'Pending' | 'Cancelled';
   total: number;
   currencySymbol: string;
@@ -274,6 +275,7 @@ interface AdminOnlineOrdersClientProps {
 export default function AdminOnlineOrdersClient({
   initialLiveOrders = [],
 }: AdminOnlineOrdersClientProps) {
+  const router = useRouter();
   // Always default to real live database orders
   const [dataMode, setDataMode] = useState<'live' | 'sample'>('live');
   const [activeTab, setActiveTab] = useState<'All' | 'Processing' | 'Shipped' | 'Pending' | 'Cancelled'>('All');
@@ -379,9 +381,13 @@ export default function AdminOnlineOrdersClient({
                 status: 'Confirmed',
                 displayStatus: 'Processing',
                 paymentStatus: 'verified',
+                activePayment: prev.activePayment
+                  ? { ...prev.activePayment, verificationStatus: 'verified' }
+                  : null,
               }
             : null
         );
+        router.refresh();
       }
     });
   };
@@ -426,9 +432,13 @@ export default function AdminOnlineOrdersClient({
                 status: 'Payment Action Required',
                 displayStatus: 'Pending',
                 paymentStatus: 'rejected',
+                activePayment: prev.activePayment
+                  ? { ...prev.activePayment, verificationStatus: 'rejected' }
+                  : null,
               }
             : null
         );
+        router.refresh();
       }
     });
   };
@@ -456,6 +466,25 @@ export default function AdminOnlineOrdersClient({
         setActionError(res.error || 'Failed to update order status.');
       } else {
         setActionSuccess(`Order status successfully updated to ${newStatus}.`);
+        const targetDisplay: 'Processing' | 'Shipped' | 'Pending' | 'Cancelled' =
+          newStatus === 'Processing'
+            ? 'Processing'
+            : newStatus === 'Dispatched'
+            ? 'Shipped'
+            : newStatus === 'Delivered'
+            ? 'Shipped'
+            : 'Cancelled';
+
+        setSelectedOrder((prev) =>
+          prev
+            ? {
+                ...prev,
+                status: newStatus,
+                displayStatus: targetDisplay,
+              }
+            : null
+        );
+        router.refresh();
       }
     });
   };
@@ -465,25 +494,25 @@ export default function AdminOnlineOrdersClient({
     switch (displayStatus) {
       case 'Processing':
         return (
-          <span className="inline-block text-center min-w-[86px] px-3.5 py-1 text-xs font-semibold rounded-full bg-[#2563EB] text-white shadow-xs">
+          <span className="inline-block text-center min-w-[76px] px-2.5 py-0.5 text-[11px] font-semibold rounded-full bg-[#2563EB] text-white shadow-xs">
             Processing
           </span>
         );
       case 'Shipped':
         return (
-          <span className="inline-block text-center min-w-[86px] px-3.5 py-1 text-xs font-semibold rounded-full bg-[#10B981] text-white shadow-xs">
+          <span className="inline-block text-center min-w-[76px] px-2.5 py-0.5 text-[11px] font-semibold rounded-full bg-[#10B981] text-white shadow-xs">
             Shipped
           </span>
         );
       case 'Pending':
         return (
-          <span className="inline-block text-center min-w-[86px] px-3.5 py-1 text-xs font-semibold rounded-full bg-[#F59E0B] text-white shadow-xs">
+          <span className="inline-block text-center min-w-[76px] px-2.5 py-0.5 text-[11px] font-semibold rounded-full bg-[#F59E0B] text-white shadow-xs">
             Pending
           </span>
         );
       case 'Cancelled':
         return (
-          <span className="inline-block text-center min-w-[86px] px-3.5 py-1 text-xs font-semibold rounded-full bg-[#E11D48] text-white shadow-xs">
+          <span className="inline-block text-center min-w-[76px] px-2.5 py-0.5 text-[11px] font-semibold rounded-full bg-[#E11D48] text-white shadow-xs">
             Cancelled
           </span>
         );
@@ -491,25 +520,25 @@ export default function AdminOnlineOrdersClient({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* Page Header: Title, Subtitle, and Export Button - Exact recreation of Image 2 */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 className="text-2xl sm:text-[28px] font-bold text-slate-900 tracking-tight">
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
             Orders Management
           </h1>
-          <p className="text-sm text-slate-500 mt-1">
+          <p className="text-xs text-slate-500 mt-0.5">
             Track and manage all customer orders
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5">
           {/* Data Mode Switcher */}
           <div className="flex items-center bg-slate-100 p-1 rounded-xl text-xs font-medium text-slate-600">
             <button
               type="button"
               onClick={() => setDataMode('live')}
-              className={`px-3 py-1.5 rounded-lg transition-all ${
+              className={`px-2.5 py-1 rounded-lg transition-all ${
                 dataMode === 'live'
                   ? 'bg-white text-slate-900 font-semibold shadow-xs'
                   : 'hover:text-slate-900'
@@ -520,7 +549,7 @@ export default function AdminOnlineOrdersClient({
             <button
               type="button"
               onClick={() => setDataMode('sample')}
-              className={`px-3 py-1.5 rounded-lg transition-all ${
+              className={`px-2.5 py-1 rounded-lg transition-all ${
                 dataMode === 'sample'
                   ? 'bg-white text-slate-900 font-semibold shadow-xs'
                   : 'hover:text-slate-900'
@@ -534,9 +563,9 @@ export default function AdminOnlineOrdersClient({
           <button
             type="button"
             onClick={() => alert('Exporting orders CSV/Excel report...')}
-            className="flex items-center gap-2 bg-[#2563EB] hover:bg-blue-700 text-white text-sm font-medium px-5 py-2.5 rounded-xl shadow-xs transition-colors"
+            className="flex items-center gap-1.5 bg-[#2563EB] hover:bg-blue-700 text-white text-xs sm:text-sm font-medium px-4 py-2 rounded-xl shadow-xs transition-colors"
           >
-            <Download className="w-4 h-4 text-white" />
+            <Download className="w-3.5 h-3.5 text-white" />
             <span>Export Orders</span>
           </button>
         </div>
@@ -544,7 +573,7 @@ export default function AdminOnlineOrdersClient({
 
       {/* Prominent Banner when viewing Sample Preview */}
       {dataMode === 'sample' && (
-        <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-center justify-between text-xs text-amber-800 animate-in fade-in duration-150">
+        <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-xl flex items-center justify-between text-xs text-amber-800 animate-in fade-in duration-150">
           <div className="flex items-center gap-2">
             <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
             <span>
@@ -562,23 +591,23 @@ export default function AdminOnlineOrdersClient({
       )}
 
       {/* Main White Card Container - Exact match to Image 2 */}
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-[0_2px_12px_rgba(0,0,0,0.03)] p-6 sm:p-7">
+      <div className="bg-white rounded-xl border border-slate-100 shadow-[0_2px_12px_rgba(0,0,0,0.03)] p-4 sm:p-5">
         {/* Top Controls Row: Inner Search & Status Filter Pills */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 pb-6 border-b border-slate-100">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 pb-4 border-b border-slate-100">
           {/* Inner Search Field ("Search orders...") */}
           <div className="relative w-full md:w-64">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search orders..."
-              className="w-full pl-10 pr-3.5 py-2 bg-slate-50/70 border border-slate-200/80 rounded-xl text-xs sm:text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+              className="w-full pl-9 pr-3 py-1.5 bg-slate-50/70 border border-slate-200/80 rounded-xl text-xs sm:text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
             />
           </div>
 
           {/* Status Tabs: All, Processing, Shipped, Pending, Cancelled */}
-          <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto pb-1 md:pb-0">
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0">
             {(['All', 'Processing', 'Shipped', 'Pending', 'Cancelled'] as const).map((tab) => {
               const isActive = activeTab === tab;
               return (
@@ -586,7 +615,7 @@ export default function AdminOnlineOrdersClient({
                   key={tab}
                   type="button"
                   onClick={() => setActiveTab(tab)}
-                  className={`text-xs font-semibold px-4 py-1.5 rounded-full transition-all shrink-0 ${
+                  className={`text-xs font-semibold px-3 py-1 rounded-full transition-all shrink-0 ${
                     isActive
                       ? 'bg-[#2563EB] text-white shadow-xs'
                       : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'
@@ -600,24 +629,24 @@ export default function AdminOnlineOrdersClient({
         </div>
 
         {/* Structured Table - Exact columns and styling from Image 2 */}
-        <div className="overflow-x-auto mt-2">
-          <table className="w-full text-left border-collapse">
+        <div className="overflow-x-auto mt-1">
+          <table className="w-full text-left border-collapse text-xs">
             <thead>
               <tr className="border-b border-slate-100">
-                <th className="py-4 px-2 text-xs font-semibold text-slate-500">Order ID</th>
-                <th className="py-4 px-4 text-xs font-semibold text-slate-500">Customer</th>
-                <th className="py-4 px-4 text-xs font-semibold text-slate-500">Items</th>
-                <th className="py-4 px-4 text-xs font-semibold text-slate-500 text-center">Status</th>
-                <th className="py-4 px-4 text-xs font-semibold text-slate-500">Total</th>
-                <th className="py-4 px-4 text-xs font-semibold text-slate-500">Date</th>
-                <th className="py-4 px-2 text-xs font-semibold text-slate-500 text-right">Actions</th>
+                <th className="py-2.5 px-2 font-semibold text-slate-500">Order ID</th>
+                <th className="py-2.5 px-3 font-semibold text-slate-500">Customer</th>
+                <th className="py-2.5 px-3 font-semibold text-slate-500">Items</th>
+                <th className="py-2.5 px-3 font-semibold text-slate-500 text-center">Status</th>
+                <th className="py-2.5 px-3 font-semibold text-slate-500">Total</th>
+                <th className="py-2.5 px-3 font-semibold text-slate-500">Date</th>
+                <th className="py-2.5 px-2 font-semibold text-slate-500 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {filteredOrders.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-16 text-center">
-                    <p className="text-sm font-semibold text-slate-700">
+                  <td colSpan={7} className="py-12 text-center">
+                    <p className="text-xs sm:text-sm font-semibold text-slate-700">
                       {dataMode === 'live' ? 'No live online orders found' : 'No sample orders match the filter'}
                     </p>
                     <p className="text-xs text-slate-400 mt-1 max-w-md mx-auto">
@@ -635,39 +664,39 @@ export default function AdminOnlineOrdersClient({
                     className="hover:bg-slate-50/60 cursor-pointer transition-colors group"
                   >
                     {/* Order ID */}
-                    <td className="py-4 px-2 text-sm font-bold text-slate-900 whitespace-nowrap">
+                    <td className="py-2.5 px-2 text-xs sm:text-sm font-bold text-slate-900 whitespace-nowrap">
                       {order.orderNumber}
                     </td>
 
                     {/* Customer */}
-                    <td className="py-4 px-4 text-sm font-medium text-slate-700 whitespace-nowrap">
+                    <td className="py-2.5 px-3 text-xs sm:text-sm font-medium text-slate-700 whitespace-nowrap">
                       {order.customerName}
                     </td>
 
                     {/* Items */}
-                    <td className="py-4 px-4 text-sm text-slate-500 whitespace-nowrap">
+                    <td className="py-2.5 px-3 text-xs text-slate-500 whitespace-nowrap">
                       {order.itemsCountText}
                     </td>
 
                     {/* Status Badge */}
-                    <td className="py-4 px-4 text-center whitespace-nowrap">
+                    <td className="py-2.5 px-3 text-center whitespace-nowrap">
                       {renderStatusBadge(order.displayStatus)}
                     </td>
 
                     {/* Total */}
-                    <td className="py-4 px-4 text-sm font-bold text-slate-900 whitespace-nowrap">
+                    <td className="py-2.5 px-3 text-xs sm:text-sm font-bold text-slate-900 whitespace-nowrap">
                       {order.currencySymbol}
                       {order.total.toFixed(2)}
                     </td>
 
                     {/* Date */}
-                    <td className="py-4 px-4 text-sm text-slate-500 whitespace-nowrap">
+                    <td className="py-2.5 px-3 text-xs text-slate-500 whitespace-nowrap">
                       {order.date}
                     </td>
 
                     {/* Actions Icons (Eye, Pencil, ...) */}
-                    <td className="py-4 px-2 text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
-                      <div className="flex items-center justify-end gap-2 text-slate-400">
+                    <td className="py-2.5 px-2 text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex items-center justify-end gap-1 text-slate-400">
                         {/* Eye / View details icon */}
                         <Link
                           href={order.isSampleData ? '#' : `/admin/orders/${order.id}`}
@@ -680,7 +709,7 @@ export default function AdminOnlineOrdersClient({
                           title="Open full order details and fulfillment page"
                           className="p-1 hover:text-[#2563EB] hover:bg-blue-50 rounded-lg transition-colors text-slate-400"
                         >
-                          <Eye className="w-4 h-4" />
+                          <Eye className="w-3.5 h-3.5" />
                         </Link>
 
                         {/* Edit icon */}
@@ -690,7 +719,7 @@ export default function AdminOnlineOrdersClient({
                           title="Quick Actions"
                           className="p-1 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
                         >
-                          <SquarePen className="w-4 h-4" />
+                          <SquarePen className="w-3.5 h-3.5" />
                         </button>
 
                         {/* Three dots / more icon */}
@@ -700,7 +729,7 @@ export default function AdminOnlineOrdersClient({
                           title="More options"
                           className="p-1 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
                         >
-                          <MoreHorizontal className="w-4 h-4" />
+                          <MoreHorizontal className="w-3.5 h-3.5" />
                         </button>
                       </div>
                     </td>

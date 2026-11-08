@@ -29,46 +29,46 @@ export default function Footer() {
   return (
     <footer className="bg-[#0B4145] text-white border-t border-[#0E7A7D]/30">
       {/* Brand Value Pillars */}
-      <div className="border-b border-[#0E7A7D]/30 py-7 sm:py-8 bg-[#083336]/60">
+      <div className="border-b border-[#0E7A7D]/30 py-5 sm:py-6 bg-[#083336]/60">
         <div className="max-w-[1380px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8 text-center sm:text-left">
-            <div className="flex flex-col sm:flex-row items-center sm:items-start gap-3.5">
-              <div className="w-10 h-10 rounded-full bg-[#128F92] flex items-center justify-center shrink-0 text-white shadow-cta">
-                <Shield className="w-5 h-5 stroke-[1.8]" />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5 sm:gap-6 text-center sm:text-left">
+            <div className="flex flex-col sm:flex-row items-center sm:items-start gap-3">
+              <div className="w-8 h-8 rounded-full bg-[#128F92] flex items-center justify-center shrink-0 text-white shadow-cta">
+                <Shield className="w-4 h-4 stroke-[1.8]" />
               </div>
               <div>
-                <h4 className="font-serif text-base text-white font-bold mb-0.5">
+                <h4 className="font-serif text-sm sm:text-base text-white font-bold mb-0.5">
                   100% Genuine Formulations
                 </h4>
-                <p className="text-xs sm:text-sm text-[#DDF3F2] font-medium leading-relaxed">
+                <p className="text-xs text-[#DDF3F2] font-medium leading-relaxed">
                   Every product is authentic, ethically sourced, and tested under strict dermatological safety standards.
                 </p>
               </div>
             </div>
 
-            <div className="flex flex-col sm:flex-row items-center sm:items-start gap-3.5">
-              <div className="w-10 h-10 rounded-full bg-[#128F92] flex items-center justify-center shrink-0 text-white shadow-cta">
-                <Sparkles className="w-5 h-5 stroke-[1.8]" />
+            <div className="flex flex-col sm:flex-row items-center sm:items-start gap-3">
+              <div className="w-8 h-8 rounded-full bg-[#128F92] flex items-center justify-center shrink-0 text-white shadow-cta">
+                <Sparkles className="w-4 h-4 stroke-[1.8]" />
               </div>
               <div>
-                <h4 className="font-serif text-base text-white font-bold mb-0.5">
+                <h4 className="font-serif text-sm sm:text-base text-white font-bold mb-0.5">
                   Complimentary Royal Delivery
                 </h4>
-                <p className="text-xs sm:text-sm text-[#DDF3F2] font-medium leading-relaxed">
+                <p className="text-xs text-[#DDF3F2] font-medium leading-relaxed">
                   Packed in luxury gift boxes and dispatched swiftly on orders above ₹1,999.
                 </p>
               </div>
             </div>
 
-            <div className="flex flex-col sm:flex-row items-center sm:items-start gap-3.5">
-              <div className="w-10 h-10 rounded-full bg-[#128F92] flex items-center justify-center shrink-0 text-white shadow-cta">
-                <HeartHandshake className="w-5 h-5 stroke-[1.8]" />
+            <div className="flex flex-col sm:flex-row items-center sm:items-start gap-3">
+              <div className="w-8 h-8 rounded-full bg-[#128F92] flex items-center justify-center shrink-0 text-white shadow-cta">
+                <HeartHandshake className="w-4 h-4 stroke-[1.8]" />
               </div>
               <div>
-                <h4 className="font-serif text-base text-white font-bold mb-0.5">
+                <h4 className="font-serif text-sm sm:text-base text-white font-bold mb-0.5">
                   Beauty Concierge Support
                 </h4>
-                <p className="text-xs sm:text-sm text-[#DDF3F2] font-medium leading-relaxed">
+                <p className="text-xs text-[#DDF3F2] font-medium leading-relaxed">
                   Have questions about shades or orders? Call or WhatsApp us at{' '}
                   <a href={CONTACT_INFO.phoneLink} className="underline hover:text-white font-bold transition-colors">
                     {CONTACT_INFO.phone}
@@ -85,16 +85,16 @@ export default function Footer() {
       </div>
 
       {/* Main Footer Links */}
-      <div className="max-w-[1380px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 py-10 sm:py-12">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-8 lg:gap-10">
+      <div className="max-w-[1380px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 py-8 sm:py-10">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-7 lg:gap-8">
           {/* Brand Intro & Newsletter */}
-          <div className="lg:col-span-2 space-y-4">
-            <Link href="/" className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-full bg-[#128F92] flex items-center justify-center text-white font-serif text-lg font-bold shadow-cta">
+          <div className="lg:col-span-2 space-y-3">
+            <Link href="/" className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-full bg-[#128F92] flex items-center justify-center text-white font-serif text-base font-bold shadow-cta">
                 M
               </div>
               <div className="flex flex-col">
-                <span className="font-serif text-xl font-bold tracking-[0.14em] text-white uppercase block leading-tight">
+                <span className="font-serif text-lg font-bold tracking-[0.14em] text-white uppercase block leading-tight">
                   Majisa
                 </span>
                 <span className="text-[9px] uppercase tracking-[0.24em] text-[#DDF3F2] font-semibold">
@@ -102,20 +102,20 @@ export default function Footer() {
                 </span>
               </div>
             </Link>
-            <p className="text-xs sm:text-sm text-[#DDF3F2] leading-relaxed max-w-sm font-medium">
+            <p className="text-xs text-[#DDF3F2] leading-relaxed max-w-sm font-medium">
               Majisa Cosmetics marries timeless regal botanical traditions with modern French formulation science. Designed for lovers of pure, clean elegance.
             </p>
 
             {/* Newsletter */}
-            <div className="pt-1.5">
-              <p className="text-xs uppercase tracking-wider font-bold text-white mb-1.5">
+            <div className="pt-1">
+              <p className="text-xs uppercase tracking-wider font-bold text-white mb-1">
                 Join the Majisa Circle
               </p>
-              <p className="text-xs text-[#DDF3F2] mb-2.5 font-medium">
+              <p className="text-[11px] sm:text-xs text-[#DDF3F2] mb-2 font-medium">
                 Receive confidential launches, shade advice, and an exclusive 10% welcome privilege.
               </p>
               {isSubscribed ? (
-                <div className="flex items-center gap-2 text-xs text-white bg-[#0E7A7D] p-2.5 rounded-xl border border-[#128F92]">
+                <div className="flex items-center gap-2 text-xs text-white bg-[#0E7A7D] p-2 rounded-lg border border-[#128F92]">
                   <CheckCircle2 className="w-4 h-4 text-[#DDF3F2] shrink-0" />
                   <span>Welcome to the Majisa Circle. Check your inbox soon.</span>
                 </div>
@@ -127,11 +127,11 @@ export default function Footer() {
                     value={newsletterEmail}
                     onChange={(e) => setNewsletterEmail(e.target.value)}
                     placeholder="Enter your email address"
-                    className="flex-1 px-3.5 py-2.5 bg-[#083336] border border-[#0E7A7D] rounded-l-full text-xs sm:text-sm text-white placeholder-[#DDF3F2]/60 focus:outline-none focus:border-[#128F92]"
+                    className="flex-1 px-3 py-2 bg-[#083336] border border-[#0E7A7D] rounded-l-full text-xs text-white placeholder-[#DDF3F2]/60 focus:outline-none focus:border-[#128F92]"
                   />
                   <button
                     type="submit"
-                    className="px-5 py-2.5 bg-[#128F92] hover:bg-[#0E7A7D] text-white font-bold text-xs rounded-r-full transition-colors flex items-center gap-1 shadow-cta"
+                    className="px-4 py-2 bg-[#128F92] hover:bg-[#0E7A7D] text-white font-bold text-xs rounded-r-full transition-colors flex items-center gap-1 shadow-cta"
                   >
                     <span>Subscribe</span>
                     <ArrowRight className="w-3.5 h-3.5" />
@@ -143,10 +143,10 @@ export default function Footer() {
 
           {/* Column 1: Collections */}
           <div>
-            <h5 className="font-serif text-base text-white font-bold tracking-wider uppercase mb-4">
+            <h5 className="font-serif text-xs sm:text-sm text-white font-bold tracking-wider uppercase mb-3">
               Collections
             </h5>
-            <ul className="space-y-3 text-sm text-[#DDF3F2] font-medium">
+            <ul className="space-y-2 text-xs sm:text-sm text-[#DDF3F2] font-medium">
               <li>
                 <Link href="/collections" className="hover:text-white transition-colors">
                   All Collections
@@ -167,10 +167,10 @@ export default function Footer() {
 
           {/* Column 2: Brands */}
           <div>
-            <h5 className="font-serif text-base text-white font-bold tracking-wider uppercase mb-4">
+            <h5 className="font-serif text-xs sm:text-sm text-white font-bold tracking-wider uppercase mb-3">
               Brands
             </h5>
-            <ul className="space-y-3 text-sm text-[#DDF3F2] font-medium">
+            <ul className="space-y-2 text-xs sm:text-sm text-[#DDF3F2] font-medium">
               <li>
                 <Link href="/brands" className="hover:text-white transition-colors">
                   Brand Directory
@@ -201,10 +201,10 @@ export default function Footer() {
 
           {/* Column 3: Client Care & Contact Details */}
           <div>
-            <h5 className="font-serif text-base text-white font-bold tracking-wider uppercase mb-4">
+            <h5 className="font-serif text-xs sm:text-sm text-white font-bold tracking-wider uppercase mb-3">
               Client Care
             </h5>
-            <ul className="space-y-3 text-sm text-[#DDF3F2] font-medium mb-6">
+            <ul className="space-y-2 text-xs sm:text-sm text-[#DDF3F2] font-medium mb-4">
               <li>
                 <Link href="/contact" className="hover:text-white transition-colors font-bold text-white">
                   Contact Us
@@ -228,25 +228,25 @@ export default function Footer() {
             </ul>
 
             {/* Official Business Contact Details */}
-            <div className="space-y-3 text-xs sm:text-sm text-[#DDF3F2] border-t border-[#0E7A7D]/40 pt-4 font-medium">
+            <div className="space-y-2 text-xs text-[#DDF3F2] border-t border-[#0E7A7D]/40 pt-3 font-medium">
               <a
                 href={CONTACT_INFO.emailLink}
-                className="flex items-center gap-2.5 hover:text-white transition-colors group"
+                className="flex items-center gap-2 hover:text-white transition-colors group"
                 aria-label={`Email ${CONTACT_INFO.businessName} at ${CONTACT_INFO.email}`}
               >
-                <div className="w-8 h-8 rounded-full bg-[#128F92]/40 flex items-center justify-center shrink-0 group-hover:bg-[#128F92] transition-colors">
-                  <Mail className="w-4 h-4 text-[#DDF3F2] group-hover:text-white" />
+                <div className="w-7 h-7 rounded-full bg-[#128F92]/40 flex items-center justify-center shrink-0 group-hover:bg-[#128F92] transition-colors">
+                  <Mail className="w-3.5 h-3.5 text-[#DDF3F2] group-hover:text-white" />
                 </div>
                 <span className="truncate">{CONTACT_INFO.email}</span>
               </a>
 
               <a
                 href={CONTACT_INFO.phoneLink}
-                className="flex items-center gap-2.5 hover:text-white transition-colors group"
+                className="flex items-center gap-2 hover:text-white transition-colors group"
                 aria-label={`Call ${CONTACT_INFO.businessName} at ${CONTACT_INFO.phone}`}
               >
-                <div className="w-8 h-8 rounded-full bg-[#128F92]/40 flex items-center justify-center shrink-0 group-hover:bg-[#128F92] transition-colors">
-                  <Phone className="w-4 h-4 text-[#DDF3F2] group-hover:text-white" />
+                <div className="w-7 h-7 rounded-full bg-[#128F92]/40 flex items-center justify-center shrink-0 group-hover:bg-[#128F92] transition-colors">
+                  <Phone className="w-3.5 h-3.5 text-[#DDF3F2] group-hover:text-white" />
                 </div>
                 <span>{CONTACT_INFO.phone}</span>
               </a>
@@ -255,11 +255,11 @@ export default function Footer() {
                 href={CONTACT_INFO.whatsappLink}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-2.5 hover:text-white transition-colors group"
+                className="flex items-center gap-2 hover:text-white transition-colors group"
                 aria-label={`Chat with ${CONTACT_INFO.businessName} on WhatsApp at ${CONTACT_INFO.phone}`}
               >
-                <div className="w-8 h-8 rounded-full bg-[#128F92]/40 flex items-center justify-center shrink-0 group-hover:bg-[#128F92] transition-colors">
-                  <MessageCircle className="w-4 h-4 text-[#DDF3F2] group-hover:text-white" />
+                <div className="w-7 h-7 rounded-full bg-[#128F92]/40 flex items-center justify-center shrink-0 group-hover:bg-[#128F92] transition-colors">
+                  <MessageCircle className="w-3.5 h-3.5 text-[#DDF3F2] group-hover:text-white" />
                 </div>
                 <span>WhatsApp: {CONTACT_INFO.phone}</span>
               </a>
@@ -269,11 +269,11 @@ export default function Footer() {
                 href={CONTACT_INFO.mapLink}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-start gap-2.5 hover:text-white transition-colors group pt-1"
+                className="flex items-start gap-2 hover:text-white transition-colors group pt-0.5"
                 aria-label={`View store location: ${CONTACT_INFO.address.formatted}`}
               >
-                <div className="w-8 h-8 rounded-full bg-[#128F92]/40 flex items-center justify-center shrink-0 group-hover:bg-[#128F92] transition-colors mt-0.5">
-                  <MapPin className="w-4 h-4 text-[#DDF3F2] group-hover:text-white" />
+                <div className="w-7 h-7 rounded-full bg-[#128F92]/40 flex items-center justify-center shrink-0 group-hover:bg-[#128F92] transition-colors mt-0.5">
+                  <MapPin className="w-3.5 h-3.5 text-[#DDF3F2] group-hover:text-white" />
                 </div>
                 <div className="flex flex-col text-xs leading-relaxed">
                   <span className="font-bold text-white">Store Address:</span>
@@ -285,9 +285,9 @@ export default function Footer() {
         </div>
 
         {/* Bottom Bar */}
-        <div className="mt-10 pt-6 border-t border-[#0E7A7D]/30 flex flex-col sm:flex-row items-center justify-between text-xs sm:text-sm text-[#DDF3F2] gap-4 font-medium">
+        <div className="mt-8 pt-5 border-t border-[#0E7A7D]/30 flex flex-col sm:flex-row items-center justify-between text-xs text-[#DDF3F2] gap-3 font-medium">
           <p>&copy; {new Date().getFullYear()} {CONTACT_INFO.businessName}. All rights reserved.</p>
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-5">
             <Link href="/contact" className="hover:text-white transition-colors">
               Contact Us
             </Link>

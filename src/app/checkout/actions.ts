@@ -100,14 +100,15 @@ export async function getUpiPaymentConfig(): Promise<UpiConfigResult> {
  * 5. Aggregates and validates quantities server-side.
  */
 export async function createOrderAction(input: CreateOrderInput) {
-  // 1. Authenticate user
+  // 1. Authenticate user and verify UPI configuration in parallel
   const supabase = await createClient();
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser();
+  const [authRes, upiConfig] = await Promise.all([
+    supabase.auth.getUser(),
+    getUpiPaymentConfig(),
+  ]);
 
-  if (!user || authError) {
+  const user = authRes.data?.user;
+  if (!user || authRes.error) {
     return {
       success: false,
       error: 'You must be signed in to complete checkout.',
@@ -115,7 +116,6 @@ export async function createOrderAction(input: CreateOrderInput) {
   }
 
   // 2. Strict UPI check: Both Online and COD require UPI payment
-  const upiConfig = await getUpiPaymentConfig();
   if (!upiConfig.isAvailable) {
     return {
       success: false,

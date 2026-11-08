@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
@@ -32,6 +32,7 @@ import {
   generateUpiQrDataUrl,
   validateUtrFormat,
 } from '@/lib/payments/upi';
+import { compressPaymentProof } from '@/lib/payments/imageCompression';
 import {
   createOrderAction,
   submitPaymentProofAction,
@@ -133,7 +134,12 @@ export default function CheckoutClient({
   const [proofFile, setProofFile] = useState<File | null>(null);
   const [proofPreviewUrl, setProofPreviewUrl] = useState<string | null>(null);
   const [isSubmittingProof, setIsSubmittingProof] = useState<boolean>(false);
+  const [isCompressingProof, setIsCompressingProof] = useState<boolean>(false);
+  const [submittingStepText, setSubmittingStepText] = useState<string | null>(null);
   const [proofSubmitError, setProofSubmitError] = useState<string | null>(null);
+  const [isDraggingOver, setIsDraggingOver] = useState<boolean>(false);
+  const dragCounter = useRef<number>(0);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Generate QR when activeOrder is set
   useEffect(() => {
@@ -200,18 +206,17 @@ export default function CheckoutClient({
     }
   };
 
-  const handleProofFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const processProofFile = async (rawFile: File) => {
     setProofSubmitError(null);
-    const file = e.target.files?.[0];
-    if (!file) return;
+    if (!rawFile) return;
 
-    if (file.size > 5 * 1024 * 1024) {
-      setProofSubmitError('Payment screenshot cannot exceed 5 MB.');
+    if (rawFile.size > 15 * 1024 * 1024) {
+      setProofSubmitError('Payment screenshot cannot exceed 15 MB before optimization.');
       return;
     }
 
     const validTypes = ['image/jpeg', 'image/png', 'image/webp'];
-    if (!validTypes.includes(file.type)) {
+    if (!validTypes.includes(rawFile.type)) {
       setProofSubmitError('Only JPEG, PNG, or WEBP images are supported.');
       return;
     }
@@ -220,8 +225,71 @@ export default function CheckoutClient({
       URL.revokeObjectURL(proofPreviewUrl);
     }
 
-    setProofFile(file);
-    setProofPreviewUrl(URL.createObjectURL(file));
+    setIsCompressingProof(true);
+    try {
+      // Client-side image optimization: drops 3-10MB mobile screenshots to ~150-250KB JPEG
+      // with zero loss of readability for UTR digits, amounts, and dates.
+      const optimized = await compressPaymentProof(rawFile);
+      if (optimized.size > 5 * 1024 * 1024) {
+        setProofSubmitError('Payment screenshot cannot exceed 5 MB after optimization.');
+        setIsCompressingProof(false);
+        return;
+      }
+      setProofFile(optimized);
+      setProofPreviewUrl(URL.createObjectURL(optimized));
+    } catch (compressErr) {
+      console.warn('Screenshot compression fallback to original:', compressErr);
+      setProofFile(rawFile);
+      setProofPreviewUrl(URL.createObjectURL(rawFile));
+    } finally {
+      setIsCompressingProof(false);
+    }
+  };
+
+  const handleProofFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const rawFile = e.target.files?.[0];
+    if (rawFile) {
+      processProofFile(rawFile);
+    }
+  };
+
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounter.current += 1;
+    if (e.dataTransfer.items && e.dataTransfer.items.length > 0) {
+      setIsDraggingOver(true);
+    }
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounter.current -= 1;
+    if (dragCounter.current <= 0) {
+      dragCounter.current = 0;
+      setIsDraggingOver(false);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!isDraggingOver) {
+      setIsDraggingOver(true);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounter.current = 0;
+    setIsDraggingOver(false);
+
+    const droppedFiles = e.dataTransfer.files;
+    if (droppedFiles && droppedFiles.length > 0) {
+      processProofFile(droppedFiles[0]);
+    }
   };
 
   const handleClearProofFile = () => {
@@ -369,7 +437,8 @@ export default function CheckoutClient({
     setProofSubmitError(null);
     setUtrError(null);
 
-    if (!activeOrder) return;
+    // Prevent duplicate submissions
+    if (!activeOrder || isSubmittingProof || isCompressingProof) return;
 
     const utrCheck = validateUtrFormat(utrReference);
     if (!utrCheck.isValid) {
@@ -383,6 +452,7 @@ export default function CheckoutClient({
     }
 
     setIsSubmittingProof(true);
+    setSubmittingStepText('Uploading payment screenshot...');
 
     try {
       const formData = new FormData();
@@ -392,14 +462,17 @@ export default function CheckoutClient({
       formData.append('amount_submitted', activeOrder.amountExpected.toString());
       formData.append('proof_file', proofFile);
 
+      setSubmittingStepText('Securing payment record...');
       const res = await submitPaymentProofAction(formData);
 
       if (!res.success) {
         setProofSubmitError(res.error || 'Failed to submit payment proof.');
         setIsSubmittingProof(false);
+        setSubmittingStepText(null);
         return;
       }
 
+      setSubmittingStepText('Order confirmed! Redirecting...');
       // Success: Navigate to confirmation page
       router.push(
         `/checkout/success?order_number=${encodeURIComponent(
@@ -411,6 +484,7 @@ export default function CheckoutClient({
       const msg = err instanceof Error ? err.message : 'Failed to submit payment proof.';
       setProofSubmitError(msg);
       setIsSubmittingProof(false);
+      setSubmittingStepText(null);
     }
   };
 
@@ -493,19 +567,19 @@ export default function CheckoutClient({
         {/* Main Two-Column Layout */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           {/* Left Column: Delivery Address & Payment Options (7 Cols) */}
-          <div className="lg:col-span-7 space-y-8">
+          <div className="lg:col-span-7 space-y-4 sm:space-y-5">
             {/* SECTION 1: DELIVERY ADDRESS */}
-            <div className="bg-white rounded-3xl p-6 sm:p-8 border border-ivory-200 shadow-card space-y-6">
-              <div className="flex items-center justify-between border-b border-ivory-100 pb-4">
-                <div className="flex items-center gap-3">
-                  <span className="w-8 h-8 rounded-full bg-plum-900 text-ivory-50 flex items-center justify-center text-sm font-bold">
+            <div className="bg-white rounded-2xl p-4 sm:p-5 border border-ivory-200 shadow-sm space-y-3.5">
+              <div className="flex items-center justify-between border-b border-ivory-100 pb-3">
+                <div className="flex items-center gap-2.5 sm:gap-3">
+                  <span className="w-7 h-7 rounded-full bg-plum-900 text-ivory-50 flex items-center justify-center text-xs font-bold shrink-0">
                     1
                   </span>
                   <div>
-                    <h2 className="font-serif text-xl text-charcoal-900 font-bold">
+                    <h2 className="font-serif text-base sm:text-lg text-charcoal-900 font-bold leading-tight">
                       Delivery Destination
                     </h2>
-                    <p className="text-xs text-charcoal-500 font-light">
+                    <p className="text-[11px] sm:text-xs text-charcoal-500 font-light leading-tight mt-0.5">
                       Select a saved destination or add a new shipping address
                     </p>
                   </div>
@@ -518,7 +592,7 @@ export default function CheckoutClient({
                       setIsAddingNewAddress(!isAddingNewAddress);
                       setCheckoutError(null);
                     }}
-                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-plum-900 hover:text-plum-950 px-3 py-1.5 rounded-full bg-plum-50 hover:bg-plum-100 border border-plum-200 transition-colors"
+                    className="inline-flex items-center gap-1 text-xs font-semibold text-plum-900 hover:text-plum-950 px-2.5 py-1 rounded-full bg-plum-50 hover:bg-plum-100 border border-plum-200 transition-colors shrink-0"
                   >
                     {isAddingNewAddress ? (
                       <>
@@ -526,7 +600,7 @@ export default function CheckoutClient({
                       </>
                     ) : (
                       <>
-                        <Plus className="w-3.5 h-3.5" />
+                        <Plus className="w-3 h-3" />
                         <span>Add New Address</span>
                       </>
                     )}
@@ -536,42 +610,42 @@ export default function CheckoutClient({
 
               {/* Saved Address Selection */}
               {!isAddingNewAddress && savedAddresses.length > 0 && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3">
                   {savedAddresses.map((addr) => {
                     const isSelected = selectedAddressId === addr.id;
                     return (
                       <div
                         key={addr.id}
                         onClick={() => setSelectedAddressId(addr.id)}
-                        className={`cursor-pointer rounded-2xl p-4 border transition-all text-left flex flex-col justify-between space-y-3 ${
+                        className={`cursor-pointer rounded-xl p-3 sm:p-3.5 border transition-all text-left flex flex-col justify-between space-y-2 ${
                           isSelected
-                            ? 'border-plum-900 bg-plum-50/30 ring-2 ring-plum-800 shadow-sm'
+                            ? 'border-plum-900 bg-plum-50/30 ring-1.5 ring-plum-800 shadow-xs'
                             : 'border-ivory-200 hover:border-ivory-300 bg-white'
                         }`}
                       >
-                        <div className="space-y-1.5">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-bold uppercase tracking-wider text-plum-900 bg-plum-100 px-2.5 py-0.5 rounded-full">
+                        <div className="space-y-1">
+                          <div className="flex items-center justify-between gap-1">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-plum-900 bg-plum-100 px-2 py-0.5 rounded-full">
                               {addr.type}
                             </span>
                             {addr.isDefault && (
-                              <span className="text-[11px] font-medium text-rosegold-500">
+                              <span className="text-[10px] font-medium text-rosegold-500">
                                 Default
                               </span>
                             )}
                           </div>
-                          <h3 className="font-medium text-sm text-charcoal-900">
+                          <h3 className="font-semibold text-xs sm:text-sm text-charcoal-900 leading-snug">
                             {addr.name}
                           </h3>
-                          <p className="text-xs text-charcoal-600 font-light leading-relaxed">
+                          <p className="text-[11px] text-charcoal-600 font-light leading-snug line-clamp-2">
                             {addr.street}, {addr.city}, {addr.state} -{' '}
                             {addr.postalCode}
                           </p>
                         </div>
-                        <div className="pt-2 border-t border-ivory-100 flex items-center justify-between text-xs text-charcoal-500">
-                          <span>Phone: {addr.phone}</span>
+                        <div className="pt-1.5 border-t border-ivory-100/70 flex items-center justify-between text-[11px] text-charcoal-500">
+                          <span className="truncate pr-1">Phone: {addr.phone}</span>
                           <div
-                            className={`w-4 h-4 rounded-full border flex items-center justify-center ${
+                            className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center shrink-0 ${
                               isSelected
                                 ? 'border-plum-900 bg-plum-900 text-white'
                                 : 'border-charcoal-300'
@@ -590,10 +664,10 @@ export default function CheckoutClient({
 
               {/* Add New Address Form */}
               {(isAddingNewAddress || savedAddresses.length === 0) && (
-                <div className="space-y-4 pt-2">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-semibold text-charcoal-700">
+                <div className="space-y-3 pt-1">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3">
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-semibold text-charcoal-700">
                         Recipient Full Name <span className="text-red-500">*</span>
                       </label>
                       <input
@@ -606,12 +680,12 @@ export default function CheckoutClient({
                           })
                         }
                         placeholder="e.g. Maharani Padmini"
-                        className="w-full h-11 px-3.5 rounded-xl border border-ivory-300 text-sm focus:outline-none focus:ring-2 focus:ring-plum-800 focus:border-transparent"
+                        className="w-full h-9 px-3 rounded-lg border border-ivory-300 text-xs focus:outline-none focus:ring-1.5 focus:ring-plum-800 focus:border-transparent"
                       />
                     </div>
 
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-semibold text-charcoal-700">
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-semibold text-charcoal-700">
                         Contact Phone <span className="text-red-500">*</span>
                       </label>
                       <input
@@ -621,13 +695,13 @@ export default function CheckoutClient({
                           setNewAddress({ ...newAddress, phone: e.target.value })
                         }
                         placeholder="10-digit mobile number"
-                        className="w-full h-11 px-3.5 rounded-xl border border-ivory-300 text-sm focus:outline-none focus:ring-2 focus:ring-plum-800 focus:border-transparent"
+                        className="w-full h-9 px-3 rounded-lg border border-ivory-300 text-xs focus:outline-none focus:ring-1.5 focus:ring-plum-800 focus:border-transparent"
                       />
                     </div>
                   </div>
 
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-charcoal-700">
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-semibold text-charcoal-700">
                       Street Address / House / Landmark <span className="text-red-500">*</span>
                     </label>
                     <input
@@ -640,13 +714,13 @@ export default function CheckoutClient({
                         })
                       }
                       placeholder="e.g. Royal Heritage Palace, Suite 402, Civil Lines"
-                      className="w-full h-11 px-3.5 rounded-xl border border-ivory-300 text-sm focus:outline-none focus:ring-2 focus:ring-plum-800 focus:border-transparent"
+                      className="w-full h-9 px-3 rounded-lg border border-ivory-300 text-xs focus:outline-none focus:ring-1.5 focus:ring-plum-800 focus:border-transparent"
                     />
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-semibold text-charcoal-700">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-3">
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-semibold text-charcoal-700">
                         City <span className="text-red-500">*</span>
                       </label>
                       <input
@@ -656,12 +730,12 @@ export default function CheckoutClient({
                           setNewAddress({ ...newAddress, city: e.target.value })
                         }
                         placeholder="e.g. Jaipur"
-                        className="w-full h-11 px-3.5 rounded-xl border border-ivory-300 text-sm focus:outline-none focus:ring-2 focus:ring-plum-800 focus:border-transparent"
+                        className="w-full h-9 px-3 rounded-lg border border-ivory-300 text-xs focus:outline-none focus:ring-1.5 focus:ring-plum-800 focus:border-transparent"
                       />
                     </div>
 
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-semibold text-charcoal-700">
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-semibold text-charcoal-700">
                         State <span className="text-red-500">*</span>
                       </label>
                       <select
@@ -669,7 +743,7 @@ export default function CheckoutClient({
                         onChange={(e) =>
                           setNewAddress({ ...newAddress, state: e.target.value })
                         }
-                        className="w-full h-11 px-3.5 rounded-xl border border-ivory-300 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-plum-800 focus:border-transparent"
+                        className="w-full h-9 px-2.5 rounded-lg border border-ivory-300 text-xs bg-white focus:outline-none focus:ring-1.5 focus:ring-plum-800 focus:border-transparent"
                       >
                         {INDIAN_STATES.map((st) => (
                           <option key={st} value={st}>
@@ -679,8 +753,8 @@ export default function CheckoutClient({
                       </select>
                     </div>
 
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-semibold text-charcoal-700">
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-semibold text-charcoal-700">
                         Postal PIN Code <span className="text-red-500">*</span>
                       </label>
                       <input
@@ -694,17 +768,17 @@ export default function CheckoutClient({
                           })
                         }
                         placeholder="6 digits (e.g. 302001)"
-                        className="w-full h-11 px-3.5 rounded-xl border border-ivory-300 text-sm focus:outline-none focus:ring-2 focus:ring-plum-800 focus:border-transparent"
+                        className="w-full h-9 px-3 rounded-lg border border-ivory-300 text-xs focus:outline-none focus:ring-1.5 focus:ring-plum-800 focus:border-transparent"
                       />
                     </div>
                   </div>
 
-                  <div className="pt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <div className="flex items-center gap-4">
-                      <span className="text-xs font-semibold text-charcoal-700">
+                  <div className="pt-1 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                    <div className="flex items-center gap-3">
+                      <span className="text-[11px] font-semibold text-charcoal-700">
                         Address Label:
                       </span>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1.5">
                         {(['Home', 'Work'] as const).map((type) => (
                           <button
                             key={type}
@@ -712,7 +786,7 @@ export default function CheckoutClient({
                             onClick={() =>
                               setNewAddress({ ...newAddress, addressType: type })
                             }
-                            className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${
+                            className={`px-2.5 py-0.5 rounded-full text-[11px] font-medium transition-all ${
                               newAddress.addressType === type
                                 ? 'bg-plum-900 text-white shadow-xs'
                                 : 'bg-ivory-100 text-charcoal-600 hover:bg-ivory-200'
@@ -724,14 +798,14 @@ export default function CheckoutClient({
                       </div>
                     </div>
 
-                    <label className="flex items-center gap-2 cursor-pointer select-none text-xs text-charcoal-700 font-medium">
+                    <label className="flex items-center gap-2 cursor-pointer select-none text-[11px] text-charcoal-700 font-medium">
                       <input
                         type="checkbox"
                         checked={saveAddressToProfile}
                         onChange={(e) =>
                           setSaveAddressToProfile(e.target.checked)
                         }
-                        className="w-4 h-4 rounded text-plum-900 focus:ring-plum-800"
+                        className="w-3.5 h-3.5 rounded text-plum-900 focus:ring-plum-800"
                       />
                       <span>Save this address to my profile for future orders</span>
                     </label>
@@ -740,8 +814,8 @@ export default function CheckoutClient({
               )}
 
               {/* Optional Order Note */}
-              <div className="pt-2">
-                <label className="text-xs font-medium text-charcoal-600 block mb-1.5">
+              <div className="pt-1">
+                <label className="text-[11px] font-medium text-charcoal-600 block mb-1">
                   Delivery instructions or gift note (optional):
                 </label>
                 <input
@@ -749,22 +823,22 @@ export default function CheckoutClient({
                   value={customerNotes}
                   onChange={(e) => setCustomerNotes(e.target.value)}
                   placeholder="e.g. Leave parcel with security or call before delivery"
-                  className="w-full h-10 px-3.5 rounded-xl border border-ivory-200 text-xs focus:outline-none focus:ring-2 focus:ring-plum-800"
+                  className="w-full h-8.5 sm:h-9 px-3 rounded-lg border border-ivory-200 text-xs focus:outline-none focus:ring-1.5 focus:ring-plum-800"
                 />
               </div>
             </div>
 
             {/* SECTION 2: PAYMENT METHOD & UPI STATUS */}
-            <div className="bg-white rounded-3xl p-6 sm:p-8 border border-ivory-200 shadow-card space-y-6">
-              <div className="flex items-center gap-3 border-b border-ivory-100 pb-4">
-                <span className="w-8 h-8 rounded-full bg-plum-900 text-ivory-50 flex items-center justify-center text-sm font-bold">
+            <div className="bg-white rounded-2xl p-4 sm:p-5 border border-ivory-200 shadow-sm space-y-3.5">
+              <div className="flex items-center gap-2.5 sm:gap-3 border-b border-ivory-100 pb-3">
+                <span className="w-7 h-7 rounded-full bg-plum-900 text-ivory-50 flex items-center justify-center text-xs font-bold shrink-0">
                   2
                 </span>
                 <div>
-                  <h2 className="font-serif text-xl text-charcoal-900 font-bold">
+                  <h2 className="font-serif text-base sm:text-lg text-charcoal-900 font-bold leading-tight">
                     Payment Method
                   </h2>
-                  <p className="text-xs text-charcoal-500 font-light">
+                  <p className="text-[11px] sm:text-xs text-charcoal-500 font-light leading-tight mt-0.5">
                     Every order uses encrypted UPI QR with manual financial verification
                   </p>
                 </div>
@@ -772,58 +846,58 @@ export default function CheckoutClient({
 
               {/* STRICT UPI CHECK: If UPI is inactive or unconfigured */}
               {!upiConfig.isAvailable ? (
-                <div className="p-6 rounded-2xl bg-amber-50/80 border border-amber-200 space-y-3">
-                  <div className="flex items-center gap-2.5 text-amber-900 font-bold text-sm">
-                    <AlertCircle className="w-5 h-5 text-amber-700 shrink-0" />
+                <div className="p-4 sm:p-5 rounded-xl bg-amber-50/80 border border-amber-200 space-y-2">
+                  <div className="flex items-center gap-2 text-amber-900 font-bold text-xs sm:text-sm">
+                    <AlertCircle className="w-4 h-4 text-amber-700 shrink-0" />
                     <span>UPI Payments Temporarily Unavailable</span>
                   </div>
-                  <p className="text-xs text-amber-800 leading-relaxed font-light">
+                  <p className="text-[11px] sm:text-xs text-amber-800 leading-relaxed font-light">
                     Electronic UPI payments are currently undergoing administrative verification updates. Both Online and Cash on Delivery (Advance) orders are temporarily paused because both require UPI payment verification.
                   </p>
-                  <p className="text-xs text-amber-900 font-medium pt-1">
+                  <p className="text-[11px] sm:text-xs text-amber-900 font-medium pt-0.5">
                     Please check back shortly or reach out to our concierge for assistance.
                   </p>
                 </div>
               ) : (
                 /* UPI IS ACTIVE: Render Online vs COD Options */
-                <div className="space-y-4">
+                <div className="space-y-2.5">
                   {/* Option A: Online Payment */}
                   <div
                     onClick={() => setOrderType('online')}
-                    className={`cursor-pointer rounded-2xl p-5 border transition-all space-y-3 ${
+                    className={`cursor-pointer rounded-xl p-3 sm:p-3.5 border transition-all space-y-2 ${
                       orderType === 'online'
-                        ? 'border-plum-900 bg-plum-50/30 ring-2 ring-plum-800 shadow-sm'
+                        ? 'border-plum-900 bg-plum-50/30 ring-1.5 ring-plum-800 shadow-xs'
                         : 'border-ivory-200 hover:border-ivory-300 bg-white'
                     }`}
                   >
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-center gap-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-start sm:items-center gap-2.5 sm:gap-3 flex-1 min-w-0">
                         <div
-                          className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                          className={`w-8 h-8 sm:w-9 sm:h-9 rounded-lg flex items-center justify-center shrink-0 ${
                             orderType === 'online'
                               ? 'bg-plum-900 text-white'
                               : 'bg-ivory-100 text-charcoal-600'
                           }`}
                         >
-                          <CreditCard className="w-5 h-5" />
+                          <CreditCard className="w-4 h-4" />
                         </div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <h3 className="font-serif text-base font-bold text-charcoal-900">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <h3 className="font-serif text-sm sm:text-base font-bold text-charcoal-900 leading-tight">
                               Online Payment (Full Order Amount)
                             </h3>
-                            <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
+                            <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 leading-none">
                               Direct Verification
                             </span>
                           </div>
-                          <p className="text-xs text-charcoal-600 font-light mt-0.5">
+                          <p className="text-[11px] sm:text-xs text-charcoal-600 font-light leading-snug mt-0.5">
                             Pay the full order amount of ₹{totalAmount.toLocaleString('en-IN')} upfront via dynamic UPI QR
                           </p>
                         </div>
                       </div>
 
                       <div
-                        className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 mt-1 ${
+                        className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 mt-0.5 ${
                           orderType === 'online'
                             ? 'border-plum-900 bg-plum-900 text-white'
                             : 'border-charcoal-300'
@@ -835,7 +909,7 @@ export default function CheckoutClient({
                       </div>
                     </div>
 
-                    <div className="pl-13 text-xs text-charcoal-500 font-light border-t border-ivory-100/60 pt-2.5 flex items-center justify-between">
+                    <div className="sm:pl-11 text-[11px] sm:text-xs text-charcoal-500 font-light border-t border-ivory-100/70 pt-2 flex flex-wrap items-center justify-between gap-1">
                       <span>Upfront Payable: <strong className="text-plum-900 font-semibold">₹{totalAmount.toLocaleString('en-IN')}</strong></span>
                       <span>Balance on Delivery: <strong className="text-emerald-700 font-semibold">₹0.00</strong></span>
                     </div>
@@ -844,40 +918,40 @@ export default function CheckoutClient({
                   {/* Option B: COD with Advance */}
                   <div
                     onClick={() => setOrderType('cod')}
-                    className={`cursor-pointer rounded-2xl p-5 border transition-all space-y-3 ${
+                    className={`cursor-pointer rounded-xl p-3 sm:p-3.5 border transition-all space-y-2 ${
                       orderType === 'cod'
-                        ? 'border-plum-900 bg-plum-50/30 ring-2 ring-plum-800 shadow-sm'
+                        ? 'border-plum-900 bg-plum-50/30 ring-1.5 ring-plum-800 shadow-xs'
                         : 'border-ivory-200 hover:border-ivory-300 bg-white'
                     }`}
                   >
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-center gap-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-start sm:items-center gap-2.5 sm:gap-3 flex-1 min-w-0">
                         <div
-                          className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                          className={`w-8 h-8 sm:w-9 sm:h-9 rounded-lg flex items-center justify-center shrink-0 ${
                             orderType === 'cod'
                               ? 'bg-plum-900 text-white'
                               : 'bg-ivory-100 text-charcoal-600'
                           }`}
                         >
-                          <Truck className="w-5 h-5" />
+                          <Truck className="w-4 h-4" />
                         </div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <h3 className="font-serif text-base font-bold text-charcoal-900">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <h3 className="font-serif text-sm sm:text-base font-bold text-charcoal-900 leading-tight">
                               Cash on Delivery (₹{deliveryFee} Advance)
                             </h3>
-                            <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-rosegold-100 text-rosegold-800">
+                            <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-rosegold-100 text-rosegold-800 leading-none">
                               Fixed Delivery Advance
                             </span>
                           </div>
-                          <p className="text-xs text-charcoal-600 font-light mt-0.5">
+                          <p className="text-[11px] sm:text-xs text-charcoal-600 font-light leading-snug mt-0.5">
                             Pay ₹{deliveryFee} fixed delivery charge upfront via UPI QR; product balance of ₹{subtotal.toLocaleString('en-IN')} collected at delivery
                           </p>
                         </div>
                       </div>
 
                       <div
-                        className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 mt-1 ${
+                        className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 mt-0.5 ${
                           orderType === 'cod'
                             ? 'border-plum-900 bg-plum-900 text-white'
                             : 'border-charcoal-300'
@@ -889,7 +963,7 @@ export default function CheckoutClient({
                       </div>
                     </div>
 
-                    <div className="pl-13 text-xs text-charcoal-500 font-light border-t border-ivory-100/60 pt-2.5 flex items-center justify-between">
+                    <div className="sm:pl-11 text-[11px] sm:text-xs text-charcoal-500 font-light border-t border-ivory-100/70 pt-2 flex flex-wrap items-center justify-between gap-1">
                       <span>Upfront Delivery Advance: <strong className="text-plum-900 font-semibold">₹{deliveryFee.toLocaleString('en-IN')}</strong></span>
                       <span>Doorstep Balance Due: <strong className="text-amber-800 font-semibold">₹{subtotal.toLocaleString('en-IN')}</strong></span>
                     </div>
@@ -1046,43 +1120,43 @@ export default function CheckoutClient({
       {/* PAYMENT MODAL: DYNAMIC UPI QR & PROOF SUBMISSION */}
       {/* ===================================================================== */}
       {activeOrder && (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-charcoal-950/70 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6 animate-in fade-in duration-200">
-          <div className="bg-white w-full max-w-xl rounded-3xl shadow-modal border border-ivory-200 overflow-hidden my-8">
-            {/* Modal Header */}
-            <div className="bg-plum-950 text-white p-6 sm:p-7 relative">
-              <div className="space-y-1">
-                <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-rosegold-300 bg-plum-900/80 px-2.5 py-0.5 rounded-full">
+        <div className="fixed inset-0 z-50 bg-charcoal-950/75 backdrop-blur-sm flex items-center justify-center p-2.5 sm:p-4 md:p-6 overflow-y-auto animate-in fade-in duration-200">
+          <div className="bg-white w-full max-w-lg md:max-w-xl rounded-2xl sm:rounded-3xl shadow-modal border border-ivory-200 flex flex-col max-h-[92dvh] sm:max-h-[90dvh] my-auto overflow-hidden">
+            {/* Modal Header (Fixed at top of modal) */}
+            <div className="bg-plum-950 text-white p-4 sm:p-5 relative shrink-0">
+              <div className="space-y-0.5">
+                <span className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-rosegold-300 bg-plum-900/80 px-2 py-0.5 rounded-full">
                   <Sparkles className="w-3 h-3 text-rosegold-300" />
                   <span>Order Placed Successfully</span>
                 </span>
-                <h3 className="font-serif text-2xl font-bold text-ivory-50">
+                <h3 className="font-serif text-lg sm:text-xl font-bold text-ivory-50 leading-tight">
                   Complete Your UPI Payment
                 </h3>
-                <p className="text-xs text-ivory-300 font-light">
+                <p className="text-[11px] sm:text-xs text-ivory-300 font-light">
                   Order Reference: <span className="font-mono text-white font-medium">{activeOrder.orderNumber}</span>
                 </p>
               </div>
 
-              <div className="mt-4 p-3 rounded-xl bg-plum-900/60 border border-plum-800/80 flex items-center justify-between text-xs">
-                <span className="text-ivory-200 font-light">
+              <div className="mt-2.5 p-2.5 rounded-lg bg-plum-900/60 border border-plum-800/80 flex items-center justify-between text-xs">
+                <span className="text-ivory-200 font-light text-[11px] sm:text-xs">
                   {activeOrder.orderType === 'online'
                     ? 'Online Payment (Full Order Amount):'
                     : 'Cash on Delivery (₹100 Advance):'}
                 </span>
-                <span className="font-bold text-rosegold-200 text-base">
+                <span className="font-bold text-rosegold-200 text-sm sm:text-base">
                   ₹{activeOrder.amountExpected.toLocaleString('en-IN')}
                 </span>
               </div>
             </div>
 
-            {/* Modal Body */}
-            <div className="p-6 sm:p-7 space-y-6">
+            {/* Modal Body (Scrolls internally if viewport is constrained) */}
+            <div className="p-4 sm:p-5 space-y-3.5 sm:space-y-4 overflow-y-auto overscroll-contain flex-1">
               {/* Dynamic QR Display */}
-              <div className="flex flex-col sm:flex-row items-center gap-6 p-4 rounded-2xl bg-ivory-50 border border-ivory-200">
-                <div className="w-48 h-48 bg-white p-3 rounded-2xl shadow-sm border border-ivory-200 flex items-center justify-center shrink-0">
+              <div className="flex flex-col sm:flex-row items-center gap-3 sm:gap-4 p-3 rounded-xl bg-ivory-50 border border-ivory-200">
+                <div className="w-36 h-36 sm:w-40 sm:h-40 bg-white p-2 sm:p-2.5 rounded-xl shadow-xs border border-ivory-200 flex items-center justify-center shrink-0">
                   {isGeneratingQr ? (
                     <div className="flex flex-col items-center gap-2 text-charcoal-400 text-xs">
-                      <Loader2 className="w-6 h-6 animate-spin text-plum-900" />
+                      <Loader2 className="w-5 h-5 animate-spin text-plum-900" />
                       <span>Generating QR...</span>
                     </div>
                   ) : qrDataUrl ? (
@@ -1098,13 +1172,13 @@ export default function CheckoutClient({
                   )}
                 </div>
 
-                <div className="space-y-3 flex-1 text-center sm:text-left">
-                  <div className="space-y-1">
-                    <p className="text-xs font-semibold text-charcoal-900 uppercase tracking-wider">
+                <div className="space-y-2 flex-1 text-center sm:text-left min-w-0">
+                  <div className="space-y-0.5">
+                    <p className="text-[10px] font-bold text-charcoal-700 uppercase tracking-wider">
                       Merchant VPA / UPI ID
                     </p>
-                    <div className="flex items-center justify-center sm:justify-start gap-2">
-                      <code className="text-xs sm:text-sm font-mono font-bold text-plum-900 bg-white px-2.5 py-1 rounded-lg border border-ivory-300">
+                    <div className="flex items-center justify-center sm:justify-start gap-1.5">
+                      <code className="text-xs sm:text-sm font-mono font-bold text-plum-900 bg-white px-2 py-0.5 rounded-lg border border-ivory-300">
                         {activeOrder.vpa}
                       </code>
                       <button
@@ -1129,7 +1203,7 @@ export default function CheckoutClient({
                   {upiUri && (
                     <a
                       href={upiUri}
-                      className="inline-flex items-center justify-center gap-1.5 w-full sm:w-auto px-4 py-2 rounded-xl bg-plum-900 hover:bg-plum-950 text-white text-xs font-bold transition-all shadow-xs"
+                      className="inline-flex items-center justify-center gap-1.5 w-full sm:w-auto px-3.5 py-1.5 rounded-lg bg-plum-900 hover:bg-plum-950 text-white text-xs font-bold transition-all shadow-xs"
                     >
                       <span>Open in UPI App</span>
                       <ExternalLink className="w-3.5 h-3.5" />
@@ -1139,32 +1213,32 @@ export default function CheckoutClient({
               </div>
 
               {/* Proof Submission Instructions */}
-              <div className="rounded-xl p-3.5 bg-plum-50/50 border border-plum-100 flex items-start gap-2.5 text-xs text-plum-950">
+              <div className="rounded-xl p-2.5 sm:p-3 bg-plum-50/50 border border-plum-100 flex items-start gap-2 text-[11px] sm:text-xs text-plum-950">
                 <Info className="w-4 h-4 text-plum-800 shrink-0 mt-0.5" />
-                <div className="space-y-1 leading-relaxed">
+                <div className="space-y-0.5 leading-relaxed">
                   <p className="font-semibold">Verification Step:</p>
-                  <p className="font-light">
+                  <p className="font-light text-charcoal-600">
                     After completing the transfer in GPay, PhonePe, Paytm, or BHIM, copy the 12-digit UTR/Reference Number and upload your transaction screenshot below.
                   </p>
                 </div>
               </div>
 
               {/* Proof Submission Form */}
-              <form onSubmit={handleSubmitPaymentProof} className="space-y-4">
+              <form onSubmit={handleSubmitPaymentProof} className="space-y-3 sm:space-y-3.5">
                 {proofSubmitError && (
-                  <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-xs text-red-700 font-medium flex items-center gap-2">
+                  <div className="p-2.5 rounded-lg bg-red-50 border border-red-200 text-xs text-red-700 font-medium flex items-center gap-2">
                     <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
                     <span>{proofSubmitError}</span>
                   </div>
                 )}
 
                 {/* UTR Input */}
-                <div className="space-y-1.5">
+                <div className="space-y-1">
                   <label className="text-xs font-semibold text-charcoal-800 flex items-center justify-between">
                     <span>
                       UPI Transaction ID / UTR Number <span className="text-red-500">*</span>
                     </span>
-                    <span className="text-[11px] text-charcoal-500 font-normal">
+                    <span className="text-[10px] text-charcoal-500 font-normal">
                       8–22 characters
                     </span>
                   </label>
@@ -1177,39 +1251,48 @@ export default function CheckoutClient({
                     }}
                     placeholder="e.g. 430129384756"
                     maxLength={22}
-                    className="w-full h-11 px-3.5 rounded-xl border border-ivory-300 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-plum-800"
+                    className="w-full h-9 sm:h-10 px-3 rounded-lg border border-ivory-300 font-mono text-xs sm:text-sm focus:outline-none focus:ring-1.5 focus:ring-plum-800"
                   />
                   {utrError && (
                     <p className="text-xs text-red-600 font-medium">{utrError}</p>
                   )}
                 </div>
 
-                {/* Screenshot Upload */}
-                <div className="space-y-1.5">
+                {/* Screenshot Upload with Reliable Drag & Drop */}
+                <div className="space-y-1">
                   <label className="text-xs font-semibold text-charcoal-800 flex items-center justify-between">
                     <span>
                       Payment Screenshot Proof <span className="text-red-500">*</span>
                     </span>
-                    <span className="text-[11px] text-charcoal-500 font-normal">
+                    <span className="text-[10px] text-charcoal-500 font-normal">
                       JPEG, PNG or WEBP (Max 5 MB)
                     </span>
                   </label>
 
+                  {/* Hidden file input controlled by ref */}
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    onChange={handleProofFileChange}
+                    className="hidden"
+                  />
+
                   {proofPreviewUrl ? (
-                    <div className="relative rounded-2xl border border-ivory-200 p-3 bg-ivory-50 flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 rounded-lg overflow-hidden border border-ivory-300 relative bg-white">
+                    <div className="relative rounded-xl border border-ivory-200 p-2.5 bg-ivory-50 flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="w-10 h-10 rounded-lg overflow-hidden border border-ivory-300 relative bg-white shrink-0">
                           <img
                             src={proofPreviewUrl}
                             alt="Payment Proof Preview"
                             className="w-full h-full object-cover"
                           />
                         </div>
-                        <div className="text-xs">
-                          <p className="font-semibold text-charcoal-900 truncate max-w-[200px]">
+                        <div className="text-xs min-w-0">
+                          <p className="font-semibold text-charcoal-900 truncate max-w-[180px] sm:max-w-[220px]">
                             {proofFile?.name}
                           </p>
-                          <p className="text-charcoal-500">
+                          <p className="text-[11px] text-charcoal-500">
                             {proofFile
                               ? (proofFile.size / (1024 * 1024)).toFixed(2)
                               : 0}{' '}
@@ -1217,45 +1300,74 @@ export default function CheckoutClient({
                           </p>
                         </div>
                       </div>
-                      <button
-                        type="button"
-                        onClick={handleClearProofFile}
-                        className="p-1.5 rounded-full hover:bg-ivory-200 text-charcoal-500 hover:text-red-600 transition-colors"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => fileInputRef.current?.click()}
+                          className="px-2.5 py-1 text-[11px] font-semibold text-plum-900 hover:bg-plum-50 rounded-md border border-plum-200 transition-colors"
+                        >
+                          Replace
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleClearProofFile}
+                          className="p-1.5 rounded-full hover:bg-ivory-200 text-charcoal-500 hover:text-red-600 transition-colors"
+                          title="Remove screenshot"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
                   ) : (
-                    <label className="border-2 border-dashed border-ivory-300 hover:border-plum-800 rounded-2xl p-6 flex flex-col items-center justify-center gap-2 cursor-pointer transition-colors bg-ivory-50/50 hover:bg-plum-50/20 text-center">
-                      <Upload className="w-6 h-6 text-plum-900" />
-                      <div className="space-y-0.5">
-                        <span className="text-xs font-bold text-plum-900">
-                          Click to select screenshot
+                    <div
+                      onDragEnter={handleDragEnter}
+                      onDragOver={handleDragOver}
+                      onDragLeave={handleDragLeave}
+                      onDrop={handleDrop}
+                      onClick={() => fileInputRef.current?.click()}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          fileInputRef.current?.click();
+                        }
+                      }}
+                      tabIndex={0}
+                      role="button"
+                      aria-label="Upload payment screenshot proof"
+                      className={`border-2 border-dashed rounded-xl p-3.5 sm:p-4 flex flex-col items-center justify-center gap-1 cursor-pointer transition-all text-center select-none ${
+                        isDraggingOver
+                          ? 'border-[#128F92] bg-[#DDF3F2]/60 ring-2 ring-[#128F92]/40 scale-[1.01]'
+                          : 'border-ivory-300 hover:border-plum-800 bg-ivory-50/50 hover:bg-plum-50/20'
+                      }`}
+                    >
+                      <Upload className={`w-5 h-5 transition-transform ${isDraggingOver ? 'text-[#128F92] scale-110' : 'text-plum-900'}`} />
+                      <div className="space-y-0.5 pointer-events-none">
+                        <span className="text-xs font-bold text-plum-900 block">
+                          {isDraggingOver ? 'Drop screenshot image here' : 'Click to select screenshot'}
                         </span>
-                        <p className="text-[11px] text-charcoal-500 font-light">
+                        <p className="text-[10px] text-charcoal-500 font-light">
                           or drag and drop your payment receipt file
                         </p>
                       </div>
-                      <input
-                        type="file"
-                        accept="image/jpeg,image/png,image/webp"
-                        onChange={handleProofFileChange}
-                        className="hidden"
-                      />
-                    </label>
+                    </div>
                   )}
                 </div>
 
                 {/* Submit Action */}
                 <button
                   type="submit"
-                  disabled={isSubmittingProof || !proofFile || !utrReference.trim()}
-                  className="w-full h-12 rounded-full bg-plum-900 hover:bg-plum-950 disabled:bg-charcoal-300 disabled:cursor-not-allowed text-white text-xs uppercase tracking-wider font-bold transition-all shadow-md flex items-center justify-center gap-2"
+                  disabled={isSubmittingProof || isCompressingProof || !proofFile || !utrReference.trim()}
+                  className="w-full h-10 sm:h-11 rounded-full bg-plum-900 hover:bg-plum-950 disabled:bg-charcoal-300 disabled:cursor-not-allowed text-white text-xs uppercase tracking-wider font-bold transition-all shadow-md flex items-center justify-center gap-2"
                 >
                   {isSubmittingProof ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>Verifying & Uploading Proof...</span>
+                      <span>{submittingStepText || 'Uploading Payment Proof...'}</span>
+                    </>
+                  ) : isCompressingProof ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Optimizing Screenshot for Fast Upload...</span>
                     </>
                   ) : (
                     <>

@@ -134,7 +134,7 @@ export default function AdminSidebar({
         </div>
 
         {/* Navigation List - exact vertical stack & active blue pill */}
-        <div className="flex-1 overflow-y-auto px-4 py-5 space-y-1.5">
+        <div className="flex-1 overflow-y-auto px-3.5 py-4 space-y-1">
           {navItems.map((item) => {
             const Icon = item.icon;
             return (
@@ -144,14 +144,14 @@ export default function AdminSidebar({
                 target={item.isExternal ? '_blank' : undefined}
                 rel={item.isExternal ? 'noreferrer' : undefined}
                 onClick={onMobileClose}
-                className={`flex items-center gap-3.5 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
+                className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-medium transition-all ${
                   item.isActive
                     ? 'bg-[#2563EB] text-white shadow-sm shadow-blue-500/20'
                     : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'
                 }`}
               >
                 <Icon
-                  className={`w-5 h-5 transition-colors ${
+                  className={`w-4.5 h-4.5 transition-colors ${
                     item.isActive ? 'text-white' : 'text-slate-400'
                   }`}
                   strokeWidth={item.isActive ? 2.2 : 1.8}

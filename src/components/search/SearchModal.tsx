@@ -128,21 +128,21 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
   const popularSearches = ['Velvet', 'FaceWash', 'Plix', 'Skincare', 'Lipsticks'];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center pt-16 sm:pt-20 px-4 bg-[#0B4145]/40 backdrop-blur-sm transition-opacity">
+    <div className="fixed inset-0 z-50 flex items-start justify-center pt-12 sm:pt-16 px-3 sm:px-4 bg-[#0B4145]/40 backdrop-blur-sm transition-opacity">
       <div
-        className="w-full max-w-xl bg-white rounded-[22px] shadow-modal border border-[#D4E5E3] overflow-hidden animate-in fade-in zoom-in-95 duration-200"
+        className="w-full max-w-xl bg-white rounded-2xl shadow-modal border border-[#D4E5E3] overflow-hidden animate-in fade-in zoom-in-95 duration-200"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Search Input Bar */}
-        <div className="flex items-center px-4.5 py-3 border-b border-[#DDF3F2] bg-white">
-          <Search className="w-5 h-5 text-[#128F92] mr-3.5 shrink-0" />
+        <div className="flex items-center px-4 py-2.5 border-b border-[#DDF3F2] bg-white">
+          <Search className="w-4.5 h-4.5 text-[#128F92] mr-3 shrink-0" />
           <input
             ref={inputRef}
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search products, brands, or categories..."
-            className="w-full bg-transparent text-[#0B4145] placeholder-[#687F8D]/70 text-base focus:outline-none font-semibold"
+            className="w-full bg-transparent text-[#0B4145] placeholder-[#687F8D]/70 text-sm sm:text-base focus:outline-none font-semibold"
           />
           {query ? (
             <button
@@ -155,55 +155,55 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
           ) : null}
           <button
             onClick={onClose}
-            className="text-xs uppercase tracking-wider font-bold text-[#687F8D] hover:text-[#0B4145] px-3 py-1.5 rounded-full bg-[#F0F9F8] border border-[#DDF3F2]"
+            className="text-[11px] uppercase tracking-wider font-bold text-[#687F8D] hover:text-[#0B4145] px-2.5 py-1 rounded-full bg-[#F0F9F8] border border-[#DDF3F2]"
           >
             Esc
           </button>
         </div>
 
         {/* Content Area */}
-        <div className="p-6 max-h-[70vh] overflow-y-auto">
+        <div className="p-4 sm:p-5 max-h-[75vh] overflow-y-auto">
           {trimmed === '' ? (
             <div>
-              <p className="text-xs font-bold tracking-wider uppercase text-[#687F8D] mb-3">
+              <p className="text-[11px] font-bold tracking-wider uppercase text-[#687F8D] mb-2">
                 Trending Searches
               </p>
-              <div className="flex flex-wrap gap-2.5 mb-6">
+              <div className="flex flex-wrap gap-2 mb-4 sm:mb-5">
                 {popularSearches.map((term) => (
                   <button
                     key={term}
                     onClick={() => setQuery(term)}
-                    className="text-xs sm:text-sm font-bold px-4 py-2 rounded-full bg-[#F0F9F8] hover:bg-[#DDF3F2] text-[#0B4145] border border-[#DDF3F2] transition-colors"
+                    className="text-xs font-bold px-3 py-1.5 rounded-full bg-[#F0F9F8] hover:bg-[#DDF3F2] text-[#0B4145] border border-[#DDF3F2] transition-colors"
                   >
                     {term}
                   </button>
                 ))}
               </div>
 
-              <p className="text-xs font-bold tracking-wider uppercase text-[#687F8D] mb-3">
+              <p className="text-[11px] font-bold tracking-wider uppercase text-[#687F8D] mb-2">
                 Featured Categories
               </p>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-2.5">
                 {categories.slice(0, 6).map((cat: Category) => (
                   <Link
                     key={cat.id}
                     href={`/collections/${cat.slug}`}
                     onClick={onClose}
-                    className="p-3.5 rounded-2xl bg-[#F0F9F8] hover:bg-[#DDF3F2] border border-[#DDF3F2] text-sm text-[#0B4145] font-bold flex items-center justify-between group transition-colors"
+                    className="p-2.5 rounded-xl bg-[#F0F9F8] hover:bg-[#DDF3F2] border border-[#DDF3F2] text-xs sm:text-sm text-[#0B4145] font-bold flex items-center justify-between group transition-colors"
                   >
                     <span>{cat.name}</span>
-                    <ArrowRight className="w-4 h-4 text-[#128F92] group-hover:translate-x-0.5 transition-transform" />
+                    <ArrowRight className="w-3.5 h-3.5 text-[#128F92] group-hover:translate-x-0.5 transition-transform" />
                   </Link>
                 ))}
               </div>
             </div>
           ) : (
-            <div className="space-y-6">
+            <div className="space-y-4">
               {/* Product matches */}
               {matchedProducts.length > 0 && (
                 <div>
-                  <div className="flex items-center justify-between mb-3">
-                    <p className="text-xs font-bold tracking-wider uppercase text-[#687F8D]">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-[11px] font-bold tracking-wider uppercase text-[#687F8D]">
                       Products ({matchedProducts.length})
                     </p>
                     <Link
@@ -214,28 +214,28 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
                       View all results
                     </Link>
                   </div>
-                  <div className="space-y-2">
+                  <div className="space-y-1.5">
                     {matchedProducts.map((prod) => (
                       <Link
                         key={prod.id}
                         href={`/products/${prod.slug}`}
                         onClick={onClose}
-                        className="flex items-center gap-3.5 p-2.5 rounded-2xl hover:bg-[#F0F9F8] transition-colors group"
+                        className="flex items-center gap-2.5 p-2 rounded-xl hover:bg-[#F0F9F8] transition-colors group"
                       >
-                        <div className="relative w-14 h-14 rounded-2xl overflow-hidden bg-[#F0F9F8] shrink-0 border border-[#DDF3F2] flex items-center justify-center p-1">
+                        <div className="relative w-11 h-11 rounded-lg overflow-hidden bg-[#F0F9F8] shrink-0 border border-[#DDF3F2] flex items-center justify-center p-0.5">
                           <Image
                             src={prod.images[0]}
                             alt={prod.name}
                             fill
-                            sizes="56px"
-                            className="object-contain p-1 group-hover:scale-105 transition-transform"
+                            sizes="44px"
+                            className="object-contain p-0.5 group-hover:scale-105 transition-transform"
                           />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-[11px] uppercase tracking-wider text-[#687F8D] font-bold">
+                          <p className="text-[10px] uppercase tracking-wider text-[#687F8D] font-bold">
                             {prod.brand}
                           </p>
-                          <h4 className="text-sm font-bold text-[#0B4145] truncate">
+                          <h4 className="text-xs sm:text-sm font-bold text-[#0B4145] truncate">
                             {prod.name}
                           </h4>
                           <span className="text-xs font-bold text-[#128F92]">
@@ -251,16 +251,16 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
               {/* Brand matches */}
               {matchedBrands.length > 0 && (
                 <div>
-                  <p className="text-xs font-bold tracking-wider uppercase text-[#687F8D] mb-2">
+                  <p className="text-[11px] font-bold tracking-wider uppercase text-[#687F8D] mb-1.5">
                     Brands
                   </p>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-wrap gap-1.5">
                     {matchedBrands.map((b) => (
                       <Link
                         key={b.id}
                         href={`/brands/${b.slug}`}
                         onClick={onClose}
-                        className="px-4 py-2 rounded-full bg-[#F0F9F8] hover:bg-[#DDF3F2] border border-[#DDF3F2] text-xs sm:text-sm font-bold text-[#0B4145] transition-colors"
+                        className="px-3 py-1 rounded-full bg-[#F0F9F8] hover:bg-[#DDF3F2] border border-[#DDF3F2] text-xs font-bold text-[#0B4145] transition-colors"
                       >
                         {b.name}
                       </Link>
@@ -272,16 +272,16 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
               {/* Category matches */}
               {matchedCategories.length > 0 && (
                 <div>
-                  <p className="text-xs font-bold tracking-wider uppercase text-[#687F8D] mb-2">
+                  <p className="text-[11px] font-bold tracking-wider uppercase text-[#687F8D] mb-1.5">
                     Categories
                   </p>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-wrap gap-1.5">
                     {matchedCategories.map((c) => (
                       <Link
                         key={c.id}
                         href={`/collections/${c.slug}`}
                         onClick={onClose}
-                        className="px-4 py-2 rounded-full bg-[#F0F9F8] hover:bg-[#DDF3F2] border border-[#DDF3F2] text-xs sm:text-sm font-bold text-[#0B4145] transition-colors"
+                        className="px-3 py-1 rounded-full bg-[#F0F9F8] hover:bg-[#DDF3F2] border border-[#DDF3F2] text-xs font-bold text-[#0B4145] transition-colors"
                       >
                         {c.name}
                       </Link>

@@ -529,18 +529,18 @@ export default function ProductFormClient({
   };
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6 pb-12">
+    <div className="max-w-3xl mx-auto space-y-4 pb-8">
       {/* Top Navigation & Title */}
       <div className="flex items-center justify-between">
         <div>
           <Link
             href="/admin/products"
-            className="inline-flex items-center space-x-1.5 text-xs font-medium text-[#7A7670] hover:text-[#0B4145] transition-colors mb-1.5"
+            className="inline-flex items-center space-x-1 text-xs font-medium text-[#7A7670] hover:text-[#0B4145] transition-colors mb-1"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
             <span>All Products</span>
           </Link>
-          <h1 className="font-serif text-2xl font-bold text-[#0B4145]">
+          <h1 className="font-serif text-xl sm:text-2xl font-bold text-[#0B4145]">
             {mode === 'create' ? 'Add Product' : 'Edit Product'}
           </h1>
         </div>
@@ -550,7 +550,7 @@ export default function ProductFormClient({
           type="button"
           onClick={() => handleSubmit()}
           disabled={isSaveDisabled}
-          className="px-5 py-2 bg-[#0B4145] text-white rounded-xl text-sm font-semibold hover:bg-[#083134] transition-all shadow-sm disabled:opacity-50"
+          className="px-4 py-1.5 bg-[#0B4145] text-white rounded-xl text-xs sm:text-sm font-semibold hover:bg-[#083134] transition-all shadow-sm disabled:opacity-50"
         >
           {renderSaveButtonContent()}
         </button>
@@ -558,31 +558,31 @@ export default function ProductFormClient({
 
       {/* Inline Feedback Alerts */}
       {errorMessage && (
-        <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-sm flex items-center space-x-2.5">
+        <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs sm:text-sm flex items-center space-x-2">
           <AlertCircle className="w-4 h-4 text-rose-600 flex-shrink-0" />
           <span>{errorMessage}</span>
         </div>
       )}
 
       {successMessage && (
-        <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm flex items-center space-x-2.5">
+        <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs sm:text-sm flex items-center space-x-2">
           <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
           <span className="font-medium">{successMessage}</span>
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form onSubmit={handleSubmit} className="space-y-4">
         {/* =========================================================================
             SECTION A: BASIC PRODUCT INFORMATION
         ========================================================================== */}
-        <div className="bg-white p-6 sm:p-7 rounded-2xl border border-[#E5E0D8] shadow-sm space-y-5">
-          <h2 className="text-base font-bold text-[#0B4145]">
+        <div className="bg-white p-4 sm:p-5 rounded-xl border border-[#E5E0D8] shadow-sm space-y-3.5">
+          <h2 className="text-sm sm:text-base font-bold text-[#0B4145]">
             Basic Information
           </h2>
 
           {/* 1. Product Name */}
           <div>
-            <label className="block text-xs font-semibold text-[#2D2A26] mb-1.5">
+            <label className="block text-xs font-semibold text-[#2D2A26] mb-1">
               Product Name <span className="text-rose-500">*</span>
             </label>
             <input
@@ -591,14 +591,14 @@ export default function ProductFormClient({
               placeholder="e.g. Velvet Matte Lipstick"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full px-3.5 py-2.5 text-sm bg-[#FBF9F5] border border-[#D8D3C8] rounded-xl focus:outline-none focus:ring-1 focus:ring-[#0B4145] text-[#2D2A26]"
+              className="w-full px-3 py-2 text-xs sm:text-sm bg-[#FBF9F5] border border-[#D8D3C8] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#0B4145] text-[#2D2A26]"
             />
           </div>
 
           {/* 2. Selling Price & MRP */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-[#2D2A26] mb-1.5">
+              <label className="block text-xs font-semibold text-[#2D2A26] mb-1">
                 Selling Price (₹) <span className="text-rose-500">*</span>
               </label>
               <input
@@ -609,12 +609,12 @@ export default function ProductFormClient({
                 placeholder="e.g. 1450"
                 value={basePrice}
                 onChange={(e) => setBasePrice(e.target.value)}
-                className="w-full px-3.5 py-2.5 text-sm bg-[#FBF9F5] border border-[#D8D3C8] rounded-xl focus:outline-none focus:ring-1 focus:ring-[#0B4145] text-[#2D2A26]"
+                className="w-full px-3 py-2 text-xs sm:text-sm bg-[#FBF9F5] border border-[#D8D3C8] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#0B4145] text-[#2D2A26]"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-[#2D2A26] mb-1.5">
+              <label className="block text-xs font-semibold text-[#2D2A26] mb-1">
                 MRP (₹) <span className="text-xs font-normal text-gray-400">(Optional)</span>
               </label>
               <input
@@ -624,16 +624,16 @@ export default function ProductFormClient({
                 placeholder="e.g. 1800"
                 value={originalPrice}
                 onChange={(e) => setOriginalPrice(e.target.value)}
-                className="w-full px-3.5 py-2.5 text-sm bg-[#FBF9F5] border border-[#D8D3C8] rounded-xl focus:outline-none focus:ring-1 focus:ring-[#0B4145] text-[#2D2A26]"
+                className="w-full px-3 py-2 text-xs sm:text-sm bg-[#FBF9F5] border border-[#D8D3C8] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#0B4145] text-[#2D2A26]"
               />
             </div>
           </div>
 
           {/* 3. Brand & Category Selection */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {/* Brand */}
             <div>
-              <div className="flex items-center justify-between mb-1.5">
+              <div className="flex items-center justify-between mb-1">
                 <label className="text-xs font-semibold text-[#2D2A26]">
                   Brand <span className="text-xs font-normal text-gray-400">(Optional)</span>
                 </label>
@@ -648,7 +648,7 @@ export default function ProductFormClient({
               <select
                 value={brandId}
                 onChange={(e) => setBrandId(e.target.value)}
-                className="w-full px-3.5 py-2.5 text-sm bg-[#FBF9F5] border border-[#D8D3C8] rounded-xl focus:outline-none focus:ring-1 focus:ring-[#0B4145] text-[#2D2A26]"
+                className="w-full px-3 py-2 text-xs sm:text-sm bg-[#FBF9F5] border border-[#D8D3C8] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#0B4145] text-[#2D2A26]"
               >
                 <option value="">None (Unassigned)</option>
                 {brands.map((b) => (
@@ -661,7 +661,7 @@ export default function ProductFormClient({
 
             {/* Category */}
             <div>
-              <div className="flex items-center justify-between mb-1.5">
+              <div className="flex items-center justify-between mb-1">
                 <label className="text-xs font-semibold text-[#2D2A26]">
                   Category <span className="text-xs font-normal text-gray-400">(Optional)</span>
                 </label>
@@ -676,7 +676,7 @@ export default function ProductFormClient({
               <select
                 value={categoryId}
                 onChange={(e) => setCategoryId(e.target.value)}
-                className="w-full px-3.5 py-2.5 text-sm bg-[#FBF9F5] border border-[#D8D3C8] rounded-xl focus:outline-none focus:ring-1 focus:ring-[#0B4145] text-[#2D2A26]"
+                className="w-full px-3 py-2 text-xs sm:text-sm bg-[#FBF9F5] border border-[#D8D3C8] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#0B4145] text-[#2D2A26]"
               >
                 <option value="">None (Unassigned)</option>
                 {categories.map((c) => (
@@ -878,17 +878,17 @@ export default function ProductFormClient({
         {/* =========================================================================
             SECTION B: ADDITIONAL DETAILS (COLLAPSIBLE, OPTIONAL)
         ========================================================================== */}
-        <div className="bg-white rounded-2xl border border-[#E5E0D8] shadow-sm overflow-hidden">
+        <div className="bg-white rounded-xl border border-[#E5E0D8] shadow-sm overflow-hidden">
           <button
             type="button"
             onClick={() => setIsAdditionalOpen(!isAdditionalOpen)}
-            className="w-full px-6 py-4 flex items-center justify-between text-left hover:bg-[#FAF8F5] transition-colors"
+            className="w-full px-4 py-3 flex items-center justify-between text-left hover:bg-[#FAF8F5] transition-colors"
           >
             <div>
-              <span className="text-sm font-bold text-[#0B4145]">
+              <span className="text-xs sm:text-sm font-bold text-[#0B4145]">
                 Additional Details
               </span>
-              <span className="text-xs text-[#7A7670] ml-2">
+              <span className="text-[11px] text-[#7A7670] ml-2">
                 (Optional: SKU, Stock, Description, Ingredients, Shades & Sizes)
               </span>
             </div>
@@ -898,9 +898,9 @@ export default function ProductFormClient({
           </button>
 
           {isAdditionalOpen && (
-            <div className="p-6 sm:p-7 pt-2 border-t border-[#F0ECE4] space-y-4">
+            <div className="p-4 sm:p-5 pt-2 border-t border-[#F0ECE4] space-y-3.5">
               {/* SKU & Stock Quantity */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-[#2D2A26] mb-1">
                     SKU (Item Code)
@@ -910,7 +910,7 @@ export default function ProductFormClient({
                     placeholder="e.g. MAJ-LIP-01"
                     value={sku}
                     onChange={(e) => setSku(e.target.value)}
-                    className="w-full px-3.5 py-2 text-sm bg-[#FBF9F5] border border-[#D8D3C8] rounded-xl focus:outline-none focus:ring-1 focus:ring-[#0B4145] font-mono"
+                    className="w-full px-3 py-1.5 text-xs sm:text-sm bg-[#FBF9F5] border border-[#D8D3C8] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#0B4145] font-mono"
                   />
                 </div>
 
@@ -924,9 +924,9 @@ export default function ProductFormClient({
                     placeholder="Leave blank for untracked stock"
                     value={stockQuantity}
                     onChange={(e) => setStockQuantity(e.target.value)}
-                    className="w-full px-3.5 py-2 text-sm bg-[#FBF9F5] border border-[#D8D3C8] rounded-xl focus:outline-none focus:ring-1 focus:ring-[#0B4145]"
+                    className="w-full px-3 py-1.5 text-xs sm:text-sm bg-[#FBF9F5] border border-[#D8D3C8] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#0B4145]"
                   />
-                  <p className="text-[11px] text-[#7A7670] mt-0.5">
+                  <p className="text-[10px] text-[#7A7670] mt-0.5">
                     Blank = stock not tracked. 0 = out of stock.
                   </p>
                 </div>
@@ -938,16 +938,16 @@ export default function ProductFormClient({
                   Description
                 </label>
                 <textarea
-                  rows={3}
+                  rows={2}
                   placeholder="Short description of the product benefits and texture..."
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  className="w-full px-3.5 py-2 text-sm bg-[#FBF9F5] border border-[#D8D3C8] rounded-xl focus:outline-none focus:ring-1 focus:ring-[#0B4145]"
+                  className="w-full px-3 py-1.5 text-xs sm:text-sm bg-[#FBF9F5] border border-[#D8D3C8] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#0B4145]"
                 />
               </div>
 
               {/* How to Use & Ingredients */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-[#2D2A26] mb-1">
                     How to Use
@@ -957,7 +957,7 @@ export default function ProductFormClient({
                     placeholder="Application tips..."
                     value={howToUse}
                     onChange={(e) => setHowToUse(e.target.value)}
-                    className="w-full px-3.5 py-2 text-sm bg-[#FBF9F5] border border-[#D8D3C8] rounded-xl focus:outline-none focus:ring-1 focus:ring-[#0B4145]"
+                    className="w-full px-3 py-1.5 text-xs sm:text-sm bg-[#FBF9F5] border border-[#D8D3C8] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#0B4145]"
                   />
                 </div>
 
@@ -970,7 +970,7 @@ export default function ProductFormClient({
                     placeholder="INCI ingredient list..."
                     value={ingredients}
                     onChange={(e) => setIngredients(e.target.value)}
-                    className="w-full px-3.5 py-2 text-sm bg-[#FBF9F5] border border-[#D8D3C8] rounded-xl focus:outline-none focus:ring-1 focus:ring-[#0B4145]"
+                    className="w-full px-3 py-1.5 text-xs sm:text-sm bg-[#FBF9F5] border border-[#D8D3C8] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#0B4145]"
                   />
                 </div>
               </div>
@@ -1073,17 +1073,17 @@ export default function ProductFormClient({
         </div>
 
         {/* Form Action Buttons */}
-        <div className="flex items-center justify-end space-x-3 pt-2">
+        <div className="flex items-center justify-end space-x-2.5 pt-1">
           <Link
             href="/admin/products"
-            className="px-5 py-2.5 rounded-xl border border-[#D8D3C8] text-sm font-semibold text-[#5C5852] hover:bg-[#FBF9F5] transition-colors"
+            className="px-4 py-2 rounded-xl border border-[#D8D3C8] text-xs sm:text-sm font-semibold text-[#5C5852] hover:bg-[#FBF9F5] transition-colors"
           >
             Cancel
           </Link>
           <button
             type="submit"
             disabled={isSaveDisabled}
-            className="px-6 py-2.5 bg-[#0B4145] text-white text-sm font-semibold rounded-xl hover:bg-[#083134] transition-all shadow-sm disabled:opacity-50"
+            className="px-5 py-2 bg-[#0B4145] text-white text-xs sm:text-sm font-semibold rounded-xl hover:bg-[#083134] transition-all shadow-sm disabled:opacity-50"
           >
             {renderSaveButtonContent()}
           </button>

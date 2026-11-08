@@ -57,42 +57,42 @@ export default function ProductDetailClient({
   };
 
   return (
-    <div className="max-w-[1380px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 py-6 sm:py-9 space-y-10 sm:space-y-12">
+    <div className="max-w-[1380px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 py-4 sm:py-6 space-y-6 sm:space-y-8">
       {/* Breadcrumbs in clean floating card pill */}
-      <nav className="inline-flex items-center gap-2 text-xs sm:text-sm text-[#687F8D] font-bold tracking-wide bg-white px-4 py-2 rounded-full border border-[#D4E5E3] shadow-soft">
+      <nav className="inline-flex items-center gap-1.5 text-xs text-[#687F8D] font-bold tracking-wide bg-white px-3.5 py-1.5 rounded-full border border-[#D4E5E3] shadow-soft">
         <Link href="/" className="hover:text-[#128F92] transition-colors">
           Home
         </Link>
-        <ChevronRight className="w-3.5 h-3.5 text-[#BCE7E5]" />
+        <ChevronRight className="w-3 h-3 text-[#BCE7E5]" />
         <Link href="/collections" className="hover:text-[#128F92] transition-colors">
           Collections
         </Link>
-        <ChevronRight className="w-3.5 h-3.5 text-[#BCE7E5]" />
+        <ChevronRight className="w-3 h-3 text-[#BCE7E5]" />
         <Link
           href={`/collections/${product.categorySlug}`}
           className="hover:text-[#128F92] transition-colors"
         >
           {product.category}
         </Link>
-        <ChevronRight className="w-3.5 h-3.5 text-[#BCE7E5]" />
+        <ChevronRight className="w-3 h-3 text-[#BCE7E5]" />
         <span className="text-[#0B4145] font-extrabold truncate max-w-xs">{product.name}</span>
       </nav>
 
       {/* Main Product Showcase: Both Sides as Distinct Elevated White Cards */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 lg:gap-6 items-start">
         {/* Left: Gallery Column Card */}
-        <div className="lg:col-span-7 bg-white rounded-[24px] p-4.5 sm:p-6 border border-[#D4E5E3] shadow-card flex flex-col-reverse sm:flex-row gap-4">
+        <div className="lg:col-span-7 bg-white rounded-2xl p-3.5 sm:p-4.5 border border-[#D4E5E3] shadow-card flex flex-col-reverse sm:flex-row gap-3">
           {/* Thumbnails */}
           {product.images.length > 1 && (
-            <div className="flex sm:flex-col gap-2.5 overflow-x-auto sm:overflow-y-auto sm:w-20 shrink-0 py-1">
+            <div className="flex sm:flex-col gap-2 overflow-x-auto sm:overflow-y-auto sm:w-16 shrink-0 py-0.5">
               {product.images.map((img, idx) => (
                 <button
                   key={idx}
                   type="button"
                   onClick={() => setSelectedImageIndex(idx)}
-                  className={`relative w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden bg-[#F0F9F8] border-2 transition-all shrink-0 p-1.5 flex items-center justify-center ${
+                  className={`relative w-14 h-14 sm:w-16 sm:h-16 rounded-lg overflow-hidden bg-[#F0F9F8] border-2 transition-all shrink-0 p-1 flex items-center justify-center ${
                     selectedImageIndex === idx
-                      ? 'border-[#128F92] ring-2 ring-[#128F92]/20 shadow-sm'
+                      ? 'border-[#128F92] ring-1.5 ring-[#128F92]/20 shadow-xs'
                       : 'border-[#DDF3F2] hover:border-[#128F92]/60 opacity-80 hover:opacity-100'
                   }`}
                 >
@@ -100,8 +100,8 @@ export default function ProductDetailClient({
                     src={img}
                     alt={`${product.name} thumbnail ${idx + 1}`}
                     fill
-                    sizes="80px"
-                    className="object-contain p-1"
+                    sizes="64px"
+                    className="object-contain p-0.5"
                   />
                 </button>
               ))}
@@ -109,14 +109,14 @@ export default function ProductDetailClient({
           )}
 
           {/* Main Large Image: High Clarity, Uncropped with Natural Dimensions */}
-          <div className="relative flex-1 aspect-[4/5] rounded-[20px] overflow-hidden bg-[#F0F9F8] border border-[#DDF3F2] p-4 sm:p-7 flex items-center justify-center">
+          <div className="relative flex-1 aspect-[4/5] rounded-xl overflow-hidden bg-[#F0F9F8] border border-[#DDF3F2] p-3 sm:p-5 flex items-center justify-center">
             <Image
               src={product.images[selectedImageIndex] || product.images[0]}
               alt={product.name}
               fill
               priority
               sizes="(max-width: 1024px) 100vw, 55vw"
-              className="object-contain object-center transition-all duration-300 p-3 sm:p-5"
+              className="object-contain object-center transition-all duration-300 p-2 sm:p-4"
             />
 
             {/* Badges */}
@@ -167,10 +167,10 @@ export default function ProductDetailClient({
         </div>
 
         {/* Right: Product Details Card */}
-        <div className="lg:col-span-5 bg-white rounded-[24px] sm:rounded-[26px] p-5 sm:p-7 lg:p-8 border border-[#D4E5E3] shadow-card flex flex-col justify-between space-y-5">
-          <div className="space-y-5">
+        <div className="lg:col-span-5 bg-white rounded-2xl p-4 sm:p-5 lg:p-6 border border-[#D4E5E3] shadow-card flex flex-col justify-between space-y-3.5">
+          <div className="space-y-3.5">
             {/* Brand & Category */}
-            <div className="flex items-center gap-2 text-xs uppercase tracking-widest font-extrabold text-[#128F92]">
+            <div className="flex items-center gap-1.5 text-xs uppercase tracking-widest font-extrabold text-[#128F92]">
               <Link href={`/brands/${product.brandSlug}`} className="hover:underline">
                 {product.brand}
               </Link>
@@ -179,32 +179,32 @@ export default function ProductDetailClient({
             </div>
 
             {/* Title */}
-            <h1 className="font-serif text-2xl sm:text-3xl lg:text-4xl font-bold text-[#0B4145] leading-tight">
+            <h1 className="font-serif text-xl sm:text-2xl lg:text-3xl font-bold text-[#0B4145] leading-tight">
               {product.name}
             </h1>
 
             {/* Reviews & Availability */}
-            <div className="flex items-center gap-4 text-sm pb-1">
-              <div className="flex items-center gap-1.5 font-bold text-[#0B4145]">
+            <div className="flex items-center gap-3 text-xs sm:text-sm pb-0.5">
+              <div className="flex items-center gap-1 font-bold text-[#0B4145]">
                 <div className="flex text-[#128F92]">
                   {[...Array(5)].map((_, i) => (
                     <Star
                       key={i}
-                      className={`w-4 h-4 ${
+                      className={`w-3.5 h-3.5 ${
                         i < Math.floor(product.rating) ? 'fill-current' : 'opacity-30'
                       }`}
                     />
                   ))}
                 </div>
                 <span>{product.rating}</span>
-                <span className="text-[#687F8D] font-medium">
+                <span className="text-[#687F8D] font-medium text-xs">
                   ({product.reviewCount} reviews)
                 </span>
               </div>
 
-              <div className="flex items-center gap-1.5 font-bold">
+              <div className="flex items-center gap-1 font-bold text-xs">
                 <span
-                  className={`w-2.5 h-2.5 rounded-full ${
+                  className={`w-2 h-2 rounded-full ${
                     product.isAvailable ? 'bg-[#128F92]' : 'bg-red-500'
                   }`}
                 />
@@ -215,53 +215,53 @@ export default function ProductDetailClient({
             </div>
 
             {/* Price */}
-            <div className="flex items-baseline gap-3 pt-1">
-              <span className="text-2xl sm:text-3xl font-extrabold text-[#0B4145]">
+            <div className="flex items-baseline gap-2.5 pt-0.5">
+              <span className="text-xl sm:text-2xl font-extrabold text-[#0B4145]">
                 ₹{product.price.toLocaleString('en-IN')}
               </span>
               {product.originalPrice && product.originalPrice > product.price && (
-                <span className="text-lg sm:text-xl text-[#687F8D] line-through font-medium">
+                <span className="text-sm sm:text-base text-[#687F8D] line-through font-medium">
                   ₹{product.originalPrice.toLocaleString('en-IN')}
                 </span>
               )}
-              <span className="text-xs text-[#687F8D] font-bold">
+              <span className="text-[11px] text-[#687F8D] font-bold">
                 (Inclusive of all taxes)
               </span>
             </div>
 
             {/* Description */}
-            <p className="text-sm sm:text-base text-[#687F8D] leading-relaxed font-medium">
+            <p className="text-xs sm:text-sm text-[#687F8D] leading-relaxed font-medium">
               {product.description}
             </p>
 
             {/* Shades Selector */}
             {product.shades && product.shades.length > 0 && (
-              <div className="pt-3.5 border-t border-[#DDF3F2]">
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-xs uppercase tracking-wider font-extrabold text-[#0B4145]">
+              <div className="pt-2.5 border-t border-[#DDF3F2]">
+                <div className="flex justify-between items-center mb-1.5">
+                  <span className="text-[11px] uppercase tracking-wider font-extrabold text-[#0B4145]">
                     Shade:
                   </span>
-                  <span className="text-sm text-[#0B4145] font-bold">
+                  <span className="text-xs text-[#0B4145] font-bold">
                     {selectedShade || 'Select shade'}
                   </span>
                 </div>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-1.5">
                   {product.shades.map((shade) => (
                     <button
                       key={shade.id}
                       type="button"
                       onClick={() => setSelectedShade(shade.name)}
-                      className={`group relative p-1 rounded-full border-2 transition-all ${
+                      className={`group relative p-0.5 rounded-full border-2 transition-all ${
                         selectedShade === shade.name
                           ? 'border-[#128F92] ring-2 ring-[#128F92]/30 scale-105'
                           : 'border-transparent hover:border-[#DDF3F2]'
                       }`}
                     >
                       <span
-                        className="block w-5.5 h-5.5 rounded-full border border-black/10 shadow-inner"
+                        className="block w-4.5 h-4.5 rounded-full border border-black/10 shadow-inner"
                         style={{ backgroundColor: shade.hex }}
                       />
-                      <span className="absolute -bottom-7 left-1/2 -translate-x-1/2 hidden group-hover:block bg-[#0B4145] text-white text-[10px] py-0.5 px-2 rounded whitespace-nowrap z-20 pointer-events-none font-bold">
+                      <span className="absolute -bottom-6 left-1/2 -translate-x-1/2 hidden group-hover:block bg-[#0B4145] text-white text-[9px] py-0.5 px-1.5 rounded whitespace-nowrap z-20 pointer-events-none font-bold">
                         {shade.name}
                       </span>
                     </button>
@@ -272,20 +272,20 @@ export default function ProductDetailClient({
 
             {/* Sizes Selector */}
             {product.sizes && product.sizes.length > 0 && (
-              <div className="pt-3.5 border-t border-[#DDF3F2]">
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-xs uppercase tracking-wider font-extrabold text-[#0B4145]">
+              <div className="pt-2.5 border-t border-[#DDF3F2]">
+                <div className="flex justify-between items-center mb-1.5">
+                  <span className="text-[11px] uppercase tracking-wider font-extrabold text-[#0B4145]">
                     Size:
                   </span>
-                  <span className="text-sm text-[#0B4145] font-bold">{selectedSize}</span>
+                  <span className="text-xs text-[#0B4145] font-bold">{selectedSize}</span>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-1.5">
                   {product.sizes.map((s) => (
                     <button
                       key={s.id}
                       type="button"
                       onClick={() => setSelectedSize(s.size)}
-                      className={`px-5 py-2.5 rounded-full text-xs sm:text-sm font-bold border transition-all ${
+                      className={`px-3.5 py-1.5 rounded-full text-xs font-bold border transition-all ${
                         selectedSize === s.size
                           ? 'bg-[#128F92] text-white border-[#128F92] shadow-cta'
                           : 'bg-white text-[#0B4145] border-[#DDF3F2] hover:border-[#128F92]'
@@ -299,24 +299,24 @@ export default function ProductDetailClient({
             )}
 
             {/* Quantity Selector & Action Buttons */}
-            <div className="pt-5 border-t border-[#DDF3F2] space-y-3">
-              <div className="flex items-center gap-3">
+            <div className="pt-3 border-t border-[#DDF3F2] space-y-2">
+              <div className="flex items-center gap-2">
                 {/* Quantity */}
-                <div className="flex items-center border border-[#DDF3F2] rounded-full bg-white px-3 py-1.5 shadow-soft">
+                <div className="flex items-center border border-[#DDF3F2] rounded-full bg-white px-2 py-0.5 shadow-xs">
                   <button
                     type="button"
                     onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                    className="w-8 h-8 text-[#0B4145] hover:text-[#128F92] flex items-center justify-center text-base font-bold transition-colors"
+                    className="w-7 h-7 text-[#0B4145] hover:text-[#128F92] flex items-center justify-center text-sm font-bold transition-colors"
                   >
                     -
                   </button>
-                  <span className="w-7 text-center text-sm sm:text-base font-bold text-[#0B4145]">
+                  <span className="w-6 text-center text-xs sm:text-sm font-bold text-[#0B4145]">
                     {quantity}
                   </span>
                   <button
                     type="button"
                     onClick={() => setQuantity((q) => q + 1)}
-                    className="w-8 h-8 text-[#0B4145] hover:text-[#128F92] flex items-center justify-center text-base font-bold transition-colors"
+                    className="w-7 h-7 text-[#0B4145] hover:text-[#128F92] flex items-center justify-center text-sm font-bold transition-colors"
                   >
                     +
                   </button>
@@ -327,16 +327,16 @@ export default function ProductDetailClient({
                   type="button"
                   onClick={handleAddToCart}
                   disabled={!product.isAvailable}
-                  className="flex-1 h-[48px] sm:h-[50px] px-6 sm:px-7 rounded-full bg-[#128F92] hover:bg-[#0B4145] text-white text-xs sm:text-sm uppercase tracking-wider font-bold transition-all shadow-cta flex items-center justify-center gap-2 disabled:opacity-50"
+                  className="flex-1 h-10 sm:h-11 px-5 rounded-full bg-[#128F92] hover:bg-[#0B4145] text-white text-xs uppercase tracking-wider font-bold transition-all shadow-cta flex items-center justify-center gap-1.5 disabled:opacity-50"
                 >
                   {isAdded ? (
                     <>
-                      <Check className="w-4 h-4 text-white" />
+                      <Check className="w-3.5 h-3.5 text-white" />
                       <span>Added to Bag</span>
                     </>
                   ) : (
                     <>
-                      <ShoppingBag className="w-4 h-4" />
+                      <ShoppingBag className="w-3.5 h-3.5" />
                       <span>Add to Bag</span>
                     </>
                   )}
@@ -348,25 +348,25 @@ export default function ProductDetailClient({
                 type="button"
                 onClick={handleBuyNow}
                 disabled={!product.isAvailable}
-                className="w-full h-[48px] sm:h-[50px] px-6 sm:px-7 rounded-full bg-white hover:bg-[#DDF3F2] text-[#0B4145] border border-[#DDF3F2] text-xs sm:text-sm uppercase tracking-wider font-bold transition-all shadow-card disabled:opacity-50"
+                className="w-full h-10 sm:h-11 px-5 rounded-full bg-white hover:bg-[#DDF3F2] text-[#0B4145] border border-[#DDF3F2] text-xs uppercase tracking-wider font-bold transition-all shadow-xs disabled:opacity-50"
               >
                 Instant Checkout
               </button>
             </div>
 
             {/* Service & Delivery Assurance */}
-            <div className="pt-5 border-t border-[#DDF3F2] grid grid-cols-3 gap-2.5 text-center text-[11px] sm:text-xs text-[#0B4145] font-bold">
-              <div className="flex flex-col items-center gap-1.5 p-2.5 sm:p-3 rounded-xl bg-[#F0F9F8] border border-[#DDF3F2]">
-                <Truck className="w-4.5 h-4.5 text-[#128F92]" />
-                <span>Complimentary Delivery &gt; ₹1,999</span>
+            <div className="pt-3 border-t border-[#DDF3F2] grid grid-cols-3 gap-2 text-center text-[10px] sm:text-[11px] text-[#0B4145] font-bold">
+              <div className="flex flex-col items-center gap-1 p-2 rounded-lg bg-[#F0F9F8] border border-[#DDF3F2]">
+                <Truck className="w-3.5 h-3.5 text-[#128F92]" />
+                <span className="line-clamp-1">Complimentary Delivery</span>
               </div>
-              <div className="flex flex-col items-center gap-1.5 p-2.5 sm:p-3 rounded-xl bg-[#F0F9F8] border border-[#DDF3F2]">
-                <ShieldCheck className="w-4.5 h-4.5 text-[#128F92]" />
-                <span>100% Genuine Formula</span>
+              <div className="flex flex-col items-center gap-1 p-2 rounded-lg bg-[#F0F9F8] border border-[#DDF3F2]">
+                <ShieldCheck className="w-3.5 h-3.5 text-[#128F92]" />
+                <span className="line-clamp-1">100% Genuine</span>
               </div>
-              <div className="flex flex-col items-center gap-1.5 p-2.5 sm:p-3 rounded-xl bg-[#F0F9F8] border border-[#DDF3F2]">
-                <RotateCcw className="w-4.5 h-4.5 text-[#128F92]" />
-                <span>7-Day Return Policy</span>
+              <div className="flex flex-col items-center gap-1 p-2 rounded-lg bg-[#F0F9F8] border border-[#DDF3F2]">
+                <RotateCcw className="w-3.5 h-3.5 text-[#128F92]" />
+                <span className="line-clamp-1">7-Day Returns</span>
               </div>
             </div>
           </div>
@@ -411,37 +411,37 @@ export default function ProductDetailClient({
           </button>
         </div>
 
-        <div className="py-6 sm:py-7 bg-white rounded-[22px] sm:rounded-[24px] p-5 sm:p-7 lg:p-8 border border-[#D4E5E3] shadow-card mt-5">
+        <div className="py-4 sm:py-5 bg-white rounded-xl p-4 sm:p-5 lg:p-6 border border-[#D4E5E3] shadow-xs mt-3.5">
           {activeTab === 'details' && (
-            <div className="space-y-4 max-w-3xl">
-              <h3 className="font-serif text-xl sm:text-2xl font-bold text-[#0B4145]">
+            <div className="space-y-3 max-w-3xl">
+              <h3 className="font-serif text-lg sm:text-xl font-bold text-[#0B4145]">
                 About {product.name}
               </h3>
-              <p className="text-sm sm:text-base text-[#687F8D] leading-relaxed font-medium">
+              <p className="text-xs sm:text-sm text-[#687F8D] leading-relaxed font-medium">
                 {product.description}
               </p>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-3">
-                <div className="p-3.5 rounded-xl bg-[#F0F9F8] border border-[#DDF3F2]">
-                  <span className="text-[11px] uppercase font-extrabold text-[#128F92] block">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 pt-2">
+                <div className="p-2.5 rounded-lg bg-[#F0F9F8] border border-[#DDF3F2]">
+                  <span className="text-[10px] uppercase font-extrabold text-[#128F92] block">
                     Finish / Texture
                   </span>
-                  <span className="text-xs sm:text-sm font-bold text-[#0B4145]">
+                  <span className="text-xs font-bold text-[#0B4145]">
                     Velvet Matte / Weightless
                   </span>
                 </div>
-                <div className="p-3.5 rounded-xl bg-[#F0F9F8] border border-[#DDF3F2]">
-                  <span className="text-[11px] uppercase font-extrabold text-[#128F92] block">
+                <div className="p-2.5 rounded-lg bg-[#F0F9F8] border border-[#DDF3F2]">
+                  <span className="text-[10px] uppercase font-extrabold text-[#128F92] block">
                     Coverage
                   </span>
-                  <span className="text-xs sm:text-sm font-bold text-[#0B4145]">
+                  <span className="text-xs font-bold text-[#0B4145]">
                     Buildable Full Pigment
                   </span>
                 </div>
-                <div className="p-3.5 rounded-xl bg-[#F0F9F8] border border-[#DDF3F2]">
-                  <span className="text-[11px] uppercase font-extrabold text-[#128F92] block">
+                <div className="p-2.5 rounded-lg bg-[#F0F9F8] border border-[#DDF3F2]">
+                  <span className="text-[10px] uppercase font-extrabold text-[#128F92] block">
                     Formulation
                   </span>
-                  <span className="text-xs sm:text-sm font-bold text-[#0B4145]">
+                  <span className="text-xs font-bold text-[#0B4145]">
                     100% Vegan &amp; Clean
                   </span>
                 </div>
@@ -450,11 +450,11 @@ export default function ProductDetailClient({
           )}
 
           {activeTab === 'usage' && (
-            <div className="space-y-4 max-w-3xl">
-              <h3 className="font-serif text-xl sm:text-2xl font-bold text-[#0B4145]">
+            <div className="space-y-3 max-w-3xl">
+              <h3 className="font-serif text-lg sm:text-xl font-bold text-[#0B4145]">
                 How to Apply
               </h3>
-              <ol className="list-decimal list-inside space-y-2 text-sm sm:text-base text-[#687F8D] font-medium leading-relaxed">
+              <ol className="list-decimal list-inside space-y-1.5 text-xs sm:text-sm text-[#687F8D] font-medium leading-relaxed">
                 <li>Begin by preparing clean, exfoliated skin or lips.</li>
                 <li>Dispense 1-2 pumps or glide the teardrop applicator gently over the center.</li>
                 <li>Blend outward toward the contours using fingertips or our artisan brush.</li>
@@ -464,14 +464,14 @@ export default function ProductDetailClient({
           )}
 
           {activeTab === 'ingredients' && (
-            <div className="space-y-4 max-w-3xl">
-              <h3 className="font-serif text-xl sm:text-2xl font-bold text-[#0B4145]">
+            <div className="space-y-3 max-w-3xl">
+              <h3 className="font-serif text-lg sm:text-xl font-bold text-[#0B4145]">
                 Ingredients &amp; Bio-Actives
               </h3>
-              <p className="text-sm text-[#687F8D] leading-relaxed font-medium">
+              <p className="text-xs sm:text-sm text-[#687F8D] leading-relaxed font-medium">
                 Cold-Pressed Camellia Seed Oil, Plant-Derived Squalane, Gotu Kola Extract, Kashmiri Saffron Pistils, Vitamin E Tocopherol, Jojoba Esters, Mineral Mica, Silica Silylate, Fragrance (Natural Rose Damascena).
               </p>
-              <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-xs sm:text-sm text-emerald-800 font-bold">
+              <div className="p-2.5 rounded-lg bg-emerald-50 border border-emerald-200 text-xs text-emerald-800 font-bold">
                 ✓ Free from parabens, phthalates, synthetic sulfites, gluten, and animal derivatives.
               </div>
             </div>

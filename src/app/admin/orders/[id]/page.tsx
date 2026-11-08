@@ -20,9 +20,14 @@ export async function generateMetadata({ params }: PageProps) {
   };
 }
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export default async function AdminOrderDetailsPage({ params }: PageProps) {
-  await requireAdmin();
-  const { id } = await params;
+  const [, { id }] = await Promise.all([
+    requireAdmin(),
+    params,
+  ]);
 
   if (!id || !isValidUuid(id)) {
     notFound();

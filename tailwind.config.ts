@@ -125,8 +125,9 @@ const config: Config = {
       },
       borderRadius: {
         pill: "9999px",
-        card: "28px",
-        cardLg: "32px",
+        cardSm: "12px",
+        card: "18px",
+        cardLg: "22px",
       },
     },
   },

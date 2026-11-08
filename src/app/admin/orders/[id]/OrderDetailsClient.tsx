@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useTransition } from 'react';
+import React, { useState, useEffect, useTransition } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
@@ -129,6 +129,11 @@ export default function OrderDetailsClient({ initialOrder }: OrderDetailsClientP
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
 
+  // Sync client state whenever the server component re-renders with fresh initialOrder
+  useEffect(() => {
+    setOrder(initialOrder);
+  }, [initialOrder]);
+
   // Dispatch modal / form states
   const [showDispatchModal, setShowDispatchModal] = useState(false);
   const [courierInput, setCourierInput] = useState(order.courierPartner || '');
@@ -166,8 +171,18 @@ export default function OrderDetailsClient({ initialOrder }: OrderDetailsClientP
     }
   };
 
-  // Payment Verification
+  // Payment Verification Handler with immediate state sync and duplicate prevention
   const handleVerifyPayment = (paymentId: string, expectedAmount: number) => {
+    const targetPayment = order.payments.find((p) => p.id === paymentId);
+    if (targetPayment && targetPayment.verificationStatus === 'verified') {
+      setActionSuccess('This payment attempt has already been verified.');
+      return;
+    }
+    if (targetPayment && targetPayment.verificationStatus !== 'pending') {
+      setActionError(`Cannot verify payment with status: "${targetPayment.verificationStatus}".`);
+      return;
+    }
+
     startTransition(async () => {
       setActionError(null);
       setActionSuccess(null);
@@ -178,15 +193,46 @@ export default function OrderDetailsClient({ initialOrder }: OrderDetailsClientP
       });
 
       if (!res.success) {
+        // If the database states it is already verified, update the UI cleanly
+        if (res.error && res.error.includes('current: verified')) {
+          setActionSuccess('Payment is already verified in the database. Updated view.');
+          setOrder((prev) => ({
+            ...prev,
+            status: 'Confirmed',
+            paymentStatus: prev.orderType === 'online' ? 'fully_paid' : 'advance_paid',
+            advanceAmountPaid: prev.orderType === 'online' ? prev.totalAmount : expectedAmount,
+            balanceAmountDue: prev.orderType === 'online' ? 0 : prev.subtotal,
+            payments: prev.payments.map((p) =>
+              p.id === paymentId
+                ? { ...p, verificationStatus: 'verified', verifiedAt: p.verifiedAt || new Date().toISOString() }
+                : p
+            ),
+          }));
+          router.refresh();
+          return;
+        }
         setActionError(res.error || 'Payment verification failed.');
       } else {
-        setActionSuccess('Payment verified successfully! Order updated.');
+        setActionSuccess('Payment verified successfully! Order is now Confirmed.');
+        // Update client state immediately so badges update without waiting for network refresh
+        setOrder((prev) => ({
+          ...prev,
+          status: 'Confirmed',
+          paymentStatus: prev.orderType === 'online' ? 'fully_paid' : 'advance_paid',
+          advanceAmountPaid: prev.orderType === 'online' ? prev.totalAmount : expectedAmount,
+          balanceAmountDue: prev.orderType === 'online' ? 0 : prev.subtotal,
+          payments: prev.payments.map((p) =>
+            p.id === paymentId
+              ? { ...p, verificationStatus: 'verified', verifiedAt: new Date().toISOString() }
+              : p
+          ),
+        }));
         router.refresh();
       }
     });
   };
 
-  // Payment Rejection
+  // Payment Rejection Handler with immediate state sync
   const handleRejectPayment = () => {
     if (!rejectingPaymentId) return;
     if (!rejectionReasonInput.trim()) {
@@ -207,14 +253,30 @@ export default function OrderDetailsClient({ initialOrder }: OrderDetailsClientP
         setActionError(res.error || 'Payment rejection failed.');
       } else {
         setActionSuccess('Payment attempt rejected. Order marked Action Required.');
+        const targetId = rejectingPaymentId;
+        const reason = rejectionReasonInput.trim();
         setRejectingPaymentId(null);
         setRejectionReasonInput('');
+        setOrder((prev) => ({
+          ...prev,
+          status: 'Payment Action Required',
+          payments: prev.payments.map((p) =>
+            p.id === targetId
+              ? {
+                  ...p,
+                  verificationStatus: 'rejected',
+                  rejectionReason: reason,
+                  rejectedAt: new Date().toISOString(),
+                }
+              : p
+          ),
+        }));
         router.refresh();
       }
     });
   };
 
-  // Doorstep COD Cash Collection
+  // Doorstep COD Cash Collection Handler with immediate state sync
   const handleConfirmCodCollection = () => {
     startTransition(async () => {
       setActionError(null);
@@ -233,12 +295,21 @@ export default function OrderDetailsClient({ initialOrder }: OrderDetailsClientP
         setActionSuccess('Doorstep cash collection confirmed! Order is now Fully Paid.');
         setShowCodCollectionModal(false);
         setCollectionNotesInput('');
+        setOrder((prev) => ({
+          ...prev,
+          paymentStatus: 'fully_paid',
+          balanceAmountDue: 0,
+          codBalanceCollected: prev.balanceAmountDue,
+          codCollectedAt: new Date().toISOString(),
+          status: prev.status === 'Dispatched' ? 'Delivered' : prev.status,
+          deliveredAt: prev.status === 'Dispatched' ? (prev.deliveredAt || new Date().toISOString()) : prev.deliveredAt,
+        }));
         router.refresh();
       }
     });
   };
 
-  // Fulfillment Lifecycle Transitions
+  // Fulfillment Lifecycle Transitions Handler with immediate state sync
   const handleFulfillmentTransition = (newStatus: 'Processing' | 'Dispatched' | 'Delivered' | 'Cancelled') => {
     startTransition(async () => {
       setActionError(null);
@@ -256,6 +327,15 @@ export default function OrderDetailsClient({ initialOrder }: OrderDetailsClientP
       } else {
         setActionSuccess(`Order status transitioned to ${newStatus}.`);
         setShowDispatchModal(false);
+        setOrder((prev) => ({
+          ...prev,
+          status: newStatus,
+          courierPartner: newStatus === 'Dispatched' ? (courierInput.trim() || prev.courierPartner) : prev.courierPartner,
+          trackingNumber: newStatus === 'Dispatched' ? (trackingInput.trim() || prev.trackingNumber) : prev.trackingNumber,
+          dispatchedAt: newStatus === 'Dispatched' ? (prev.dispatchedAt || new Date().toISOString()) : prev.dispatchedAt,
+          deliveredAt: newStatus === 'Delivered' ? (prev.deliveredAt || new Date().toISOString()) : prev.deliveredAt,
+          cancelledAt: newStatus === 'Cancelled' ? (prev.cancelledAt || new Date().toISOString()) : prev.cancelledAt,
+        }));
         router.refresh();
       }
     });
@@ -322,19 +402,19 @@ export default function OrderDetailsClient({ initialOrder }: OrderDetailsClientP
   const pendingPayment = order.payments.find((p) => p.verificationStatus === 'pending');
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* Top Breadcrumb & Back Navigation */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div className="flex items-center gap-3">
           <Link
             href={order.orderType === 'cod' ? '/admin/orders/cod' : '/admin/orders/online'}
-            className="p-2 rounded-xl bg-white border border-slate-200/80 text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-colors shadow-xs"
+            className="p-1.5 rounded-xl bg-white border border-slate-200/80 text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-colors shadow-xs"
             title="Back to orders list"
           >
             <ArrowLeft className="w-4 h-4" />
           </Link>
           <div>
-            <div className="flex items-center gap-2 text-xs text-slate-400">
+            <div className="flex items-center gap-2 text-[11px] text-slate-400">
               <Link href="/admin" className="hover:text-slate-600">Dashboard</Link>
               <ChevronRight className="w-3 h-3" />
               <Link
@@ -346,10 +426,10 @@ export default function OrderDetailsClient({ initialOrder }: OrderDetailsClientP
               <ChevronRight className="w-3 h-3" />
               <span className="font-semibold text-slate-700">{order.orderNumber}</span>
             </div>
-            <h1 className="text-2xl sm:text-[28px] font-bold text-slate-900 tracking-tight mt-1 flex items-center gap-3">
+            <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight mt-0.5 flex items-center gap-2.5">
               <span>{order.orderNumber}</span>
               {renderStatusBadge(order.status)}
-              <span className="text-xs uppercase font-bold tracking-wider px-2.5 py-0.5 rounded-md bg-slate-100 text-slate-600 border border-slate-200">
+              <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 border border-slate-200">
                 {order.orderType === 'cod' ? 'COD' : 'Online UPI'}
               </span>
             </h1>
@@ -358,7 +438,7 @@ export default function OrderDetailsClient({ initialOrder }: OrderDetailsClientP
 
         {/* Action feedback notifications */}
         <div className="flex items-center gap-3">
-          <span className="text-xs text-slate-400">
+          <span className="text-[11px] text-slate-400">
             Placed on {order.createdAt ? new Date(order.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : 'N/A'}
           </span>
         </div>
@@ -366,35 +446,35 @@ export default function OrderDetailsClient({ initialOrder }: OrderDetailsClientP
 
       {/* Alert Notifications */}
       {actionSuccess && (
-        <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center justify-between text-xs text-emerald-800 animate-in fade-in duration-150">
-          <div className="flex items-center gap-2.5">
+        <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-between text-xs text-emerald-800 animate-in fade-in duration-150">
+          <div className="flex items-center gap-2">
             <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
             <span>{actionSuccess}</span>
           </div>
           <button type="button" onClick={() => setActionSuccess(null)} className="text-emerald-700 hover:text-emerald-900">
-            <X className="w-4 h-4" />
+            <X className="w-3.5 h-3.5" />
           </button>
         </div>
       )}
       {actionError && (
-        <div className="p-4 bg-rose-50 border border-rose-200 rounded-2xl flex items-center justify-between text-xs text-rose-800 animate-in fade-in duration-150">
-          <div className="flex items-center gap-2.5">
+        <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl flex items-center justify-between text-xs text-rose-800 animate-in fade-in duration-150">
+          <div className="flex items-center gap-2">
             <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
             <span>{actionError}</span>
           </div>
           <button type="button" onClick={() => setActionError(null)} className="text-rose-700 hover:text-rose-900">
-            <X className="w-4 h-4" />
+            <X className="w-3.5 h-3.5" />
           </button>
         </div>
       )}
 
       {/* Main Grid: Left Column (Actions, Products, Payments) & Right Column (Customer, Address, Financials) */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         {/* Left / Main Column (span 2) */}
-        <div className="lg:col-span-2 space-y-6">
+        <div className="lg:col-span-2 space-y-5">
           {/* 1. Fulfillment Lifecycle Transition Card */}
-          <div className="bg-white rounded-2xl border border-slate-100 shadow-[0_2px_12px_rgba(0,0,0,0.03)] p-6">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-100 mb-5">
+          <div className="bg-white rounded-xl border border-slate-100 shadow-[0_2px_12px_rgba(0,0,0,0.03)] p-4 sm:p-5">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-3.5">
               <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-slate-500">
                 <Truck className="w-4 h-4 text-slate-400" />
                 <span>Fulfillment Management</span>
@@ -403,13 +483,13 @@ export default function OrderDetailsClient({ initialOrder }: OrderDetailsClientP
             </div>
 
             {/* Lifecycle Transition Buttons */}
-            <div className="flex flex-wrap items-center gap-3">
+            <div className="flex flex-wrap items-center gap-2.5">
               {order.status === 'Confirmed' && (
                 <button
                   type="button"
                   onClick={() => handleFulfillmentTransition('Processing')}
                   disabled={isPending}
-                  className="px-4 py-2 bg-[#2563EB] hover:bg-blue-700 text-white rounded-xl text-xs font-semibold transition-colors shadow-xs flex items-center gap-2 disabled:opacity-50"
+                  className="px-3.5 py-1.5 bg-[#2563EB] hover:bg-blue-700 text-white rounded-lg text-xs font-semibold transition-colors shadow-xs flex items-center gap-1.5 disabled:opacity-50"
                 >
                   {isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Package className="w-3.5 h-3.5" />}
                   <span>Start Processing Order</span>
@@ -421,7 +501,7 @@ export default function OrderDetailsClient({ initialOrder }: OrderDetailsClientP
                   type="button"
                   onClick={() => setShowDispatchModal(true)}
                   disabled={isPending}
-                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold transition-colors shadow-xs flex items-center gap-2 disabled:opacity-50"
+                  className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold transition-colors shadow-xs flex items-center gap-1.5 disabled:opacity-50"
                 >
                   <Truck className="w-3.5 h-3.5" />
                   <span>Dispatch & Ship Order</span>
@@ -433,7 +513,7 @@ export default function OrderDetailsClient({ initialOrder }: OrderDetailsClientP
                   type="button"
                   onClick={() => handleFulfillmentTransition('Delivered')}
                   disabled={isPending}
-                  className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-semibold transition-colors shadow-xs flex items-center gap-2 disabled:opacity-50"
+                  className="px-3.5 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-semibold transition-colors shadow-xs flex items-center gap-1.5 disabled:opacity-50"
                 >
                   <CheckCircle2 className="w-3.5 h-3.5" />
                   <span>Mark Order as Delivered</span>
@@ -442,7 +522,7 @@ export default function OrderDetailsClient({ initialOrder }: OrderDetailsClientP
 
               {/* Courier and tracking details if dispatched */}
               {order.courierPartner && (
-                <div className="text-xs text-slate-600 bg-slate-50 border border-slate-200/70 px-3.5 py-1.5 rounded-xl flex items-center gap-2">
+                <div className="text-xs text-slate-600 bg-slate-50 border border-slate-200/70 px-3 py-1 rounded-lg flex items-center gap-1.5">
                   <span className="font-semibold text-slate-800">{order.courierPartner}</span>
                   <span className="font-mono text-slate-500">#{order.trackingNumber}</span>
                 </div>
@@ -458,7 +538,7 @@ export default function OrderDetailsClient({ initialOrder }: OrderDetailsClientP
                     }
                   }}
                   disabled={isPending}
-                  className="px-3 py-2 text-rose-600 hover:bg-rose-50 border border-rose-200 rounded-xl text-xs font-medium transition-colors ml-auto"
+                  className="px-3 py-1.5 text-rose-600 hover:bg-rose-50 border border-rose-200 rounded-lg text-xs font-medium transition-colors ml-auto"
                 >
                   Cancel Order
                 </button>
@@ -467,7 +547,7 @@ export default function OrderDetailsClient({ initialOrder }: OrderDetailsClientP
 
             {/* Timestamps */}
             {(order.dispatchedAt || order.deliveredAt || order.cancelledAt) && (
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-4 mt-4 border-t border-slate-100 text-[11px] text-slate-500">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-3 mt-3 border-t border-slate-100 text-[11px] text-slate-500">
                 {order.dispatchedAt && (
                   <div>
                     <span className="text-slate-400 block">Dispatched At</span>
@@ -491,8 +571,8 @@ export default function OrderDetailsClient({ initialOrder }: OrderDetailsClientP
           </div>
 
           {/* 2. Ordered Products Table */}
-          <div className="bg-white rounded-2xl border border-slate-100 shadow-[0_2px_12px_rgba(0,0,0,0.03)] p-6">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-100 mb-4">
+          <div className="bg-white rounded-xl border border-slate-100 shadow-[0_2px_12px_rgba(0,0,0,0.03)] p-4 sm:p-5">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-3">
               <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-slate-500">
                 <Package className="w-4 h-4 text-slate-400" />
                 <span>Ordered Products ({order.items.length})</span>
@@ -503,20 +583,20 @@ export default function OrderDetailsClient({ initialOrder }: OrderDetailsClientP
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="border-b border-slate-100 text-xs font-semibold text-slate-400">
-                    <th className="py-3 px-2">Item</th>
-                    <th className="py-3 px-3">Brand</th>
-                    <th className="py-3 px-3">Price</th>
-                    <th className="py-3 px-3 text-center">Qty</th>
-                    <th className="py-3 px-3 text-right">Total</th>
+                    <th className="py-2 px-2">Item</th>
+                    <th className="py-2 px-2.5">Brand</th>
+                    <th className="py-2 px-2.5">Price</th>
+                    <th className="py-2 px-2.5 text-center">Qty</th>
+                    <th className="py-2 px-2.5 text-right">Total</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-xs">
                   {order.items.map((item) => (
                     <tr key={item.id} className="hover:bg-slate-50/50">
-                      <td className="py-3 px-2">
-                        <div className="flex items-center gap-3">
+                      <td className="py-2.5 px-2">
+                        <div className="flex items-center gap-2.5">
                           {item.imageUrl ? (
-                            <div className="w-10 h-10 rounded-lg overflow-hidden bg-slate-100 shrink-0 border border-slate-200/60 relative">
+                            <div className="w-9 h-9 rounded-lg overflow-hidden bg-slate-100 shrink-0 border border-slate-200/60 relative">
                               <Image
                                 src={item.imageUrl}
                                 alt={item.productName}
@@ -525,22 +605,22 @@ export default function OrderDetailsClient({ initialOrder }: OrderDetailsClientP
                               />
                             </div>
                           ) : (
-                            <div className="w-10 h-10 rounded-lg bg-slate-100 border border-slate-200/60 flex items-center justify-center shrink-0">
-                              <Package className="w-4 h-4 text-slate-400" />
+                            <div className="w-9 h-9 rounded-lg bg-slate-100 border border-slate-200/60 flex items-center justify-center shrink-0">
+                              <Package className="w-3.5 h-3.5 text-slate-400" />
                             </div>
                           )}
                           <div>
-                            <div className="font-semibold text-slate-800 text-sm">{item.productName}</div>
+                            <div className="font-semibold text-slate-800 text-xs sm:text-sm">{item.productName}</div>
                             {item.variantName && (
                               <div className="text-[11px] text-slate-400">{item.variantName}</div>
                             )}
                           </div>
                         </div>
                       </td>
-                      <td className="py-3 px-3 text-slate-600 font-medium">{item.brandName || 'Majisa'}</td>
-                      <td className="py-3 px-3 text-slate-700">₹{item.unitPrice.toFixed(2)}</td>
-                      <td className="py-3 px-3 text-center font-semibold text-slate-800">{item.quantity}</td>
-                      <td className="py-3 px-3 text-right font-bold text-slate-900">₹{item.totalPrice.toFixed(2)}</td>
+                      <td className="py-2.5 px-2.5 text-slate-600 font-medium">{item.brandName || 'Majisa'}</td>
+                      <td className="py-2.5 px-2.5 text-slate-700">₹{item.unitPrice.toFixed(2)}</td>
+                      <td className="py-2.5 px-2.5 text-center font-semibold text-slate-800">{item.quantity}</td>
+                      <td className="py-2.5 px-2.5 text-right font-bold text-slate-900">₹{item.totalPrice.toFixed(2)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -549,8 +629,8 @@ export default function OrderDetailsClient({ initialOrder }: OrderDetailsClientP
           </div>
 
           {/* 3. Payment History & Manual Verification Card */}
-          <div className="bg-white rounded-2xl border border-slate-100 shadow-[0_2px_12px_rgba(0,0,0,0.03)] p-6">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-100 mb-5">
+          <div className="bg-white rounded-xl border border-slate-100 shadow-[0_2px_12px_rgba(0,0,0,0.03)] p-4 sm:p-5">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-3.5">
               <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-slate-500">
                 <CreditCard className="w-4 h-4 text-slate-400" />
                 <span>Payment History & Verification</span>
@@ -559,15 +639,15 @@ export default function OrderDetailsClient({ initialOrder }: OrderDetailsClientP
             </div>
 
             {order.payments.length === 0 ? (
-              <p className="text-xs text-slate-400 italic py-4">No payment attempts recorded for this order.</p>
+              <p className="text-xs text-slate-400 italic py-3">No payment attempts recorded for this order.</p>
             ) : (
-              <div className="space-y-4">
+              <div className="space-y-3">
                 {order.payments.map((p) => {
                   const isPendingAttempt = p.verificationStatus === 'pending';
                   return (
                     <div
                       key={p.id}
-                      className={`p-4 rounded-xl border transition-all ${
+                      className={`p-3 sm:p-3.5 rounded-xl border transition-all ${
                         isPendingAttempt
                           ? 'border-amber-300 bg-amber-50/40'
                           : p.verificationStatus === 'verified'
@@ -577,18 +657,18 @@ export default function OrderDetailsClient({ initialOrder }: OrderDetailsClientP
                           : 'border-slate-200 bg-slate-50'
                       }`}
                     >
-                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pb-3 border-b border-slate-200/60">
-                        <div className="flex items-center gap-2.5">
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5 pb-2.5 border-b border-slate-200/60">
+                        <div className="flex items-center gap-2">
                           <span className="font-bold text-xs text-slate-800">
                             Attempt #{p.attemptNumber}
                           </span>
-                          <span className="text-[11px] font-mono uppercase bg-slate-100 px-2 py-0.5 rounded text-slate-600">
+                          <span className="text-[10px] font-mono uppercase bg-slate-100 px-1.5 py-0.5 rounded text-slate-600">
                             {p.paymentMethod === 'cod_advance' ? 'COD Advance (₹100)' : 'Full UPI Order'}
                           </span>
                         </div>
                         <div className="flex items-center gap-2">
                           <span
-                            className={`text-xs font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full ${
+                            className={`text-[11px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
                               p.verificationStatus === 'verified'
                                 ? 'bg-emerald-100 text-emerald-800'
                                 : p.verificationStatus === 'rejected'
@@ -603,7 +683,7 @@ export default function OrderDetailsClient({ initialOrder }: OrderDetailsClientP
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 py-3 text-xs">
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 py-2.5 text-xs">
                         <div>
                           <span className="text-slate-400 block text-[11px]">Expected Amount</span>
                           <span className="font-bold text-slate-800">₹{p.amountExpected.toFixed(2)}</span>
@@ -621,14 +701,14 @@ export default function OrderDetailsClient({ initialOrder }: OrderDetailsClientP
                       </div>
 
                       {/* Payment Proof Access */}
-                      <div className="pt-2 flex flex-wrap items-center justify-between gap-3 border-t border-slate-200/60 text-xs">
+                      <div className="pt-2 flex flex-wrap items-center justify-between gap-2.5 border-t border-slate-200/60 text-xs">
                         <div>
                           {p.proofPublicId ? (
                             <button
                               type="button"
                               onClick={() => handleOpenProof(p.proofPublicId)}
                               disabled={isLoadingProof}
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-[#2563EB] font-semibold text-xs rounded-lg transition-colors"
+                              className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 hover:bg-blue-100 text-[#2563EB] font-semibold text-xs rounded-lg transition-colors"
                             >
                               {isLoadingProof ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Eye className="w-3.5 h-3.5" />}
                               <span>View Secure Payment Proof</span>
@@ -644,8 +724,8 @@ export default function OrderDetailsClient({ initialOrder }: OrderDetailsClientP
                             <button
                               type="button"
                               onClick={() => handleVerifyPayment(p.id, p.amountExpected)}
-                              disabled={isPending}
-                              className="px-3.5 py-1.5 bg-[#2563EB] hover:bg-blue-700 text-white rounded-lg font-semibold text-xs transition-colors shadow-xs flex items-center gap-1.5"
+                              disabled={isPending || p.verificationStatus !== 'pending'}
+                              className="px-3 py-1 bg-[#2563EB] hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded-lg font-semibold text-xs transition-colors shadow-xs flex items-center gap-1"
                             >
                               {isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
                               <span>Verify & Confirm (₹{p.amountExpected.toFixed(2)})</span>
@@ -656,8 +736,8 @@ export default function OrderDetailsClient({ initialOrder }: OrderDetailsClientP
                                 setRejectingPaymentId(p.id);
                                 setRejectionReasonInput('');
                               }}
-                              disabled={isPending}
-                              className="px-3 py-1.5 text-rose-600 hover:bg-rose-50 border border-rose-200 rounded-lg font-medium text-xs transition-colors"
+                              disabled={isPending || p.verificationStatus !== 'pending'}
+                              className="px-2.5 py-1 text-rose-600 hover:bg-rose-50 border border-rose-200 rounded-lg font-medium text-xs transition-colors"
                             >
                               Reject
                             </button>
@@ -665,22 +745,31 @@ export default function OrderDetailsClient({ initialOrder }: OrderDetailsClientP
                         )}
                       </div>
 
-                      {/* Rejection reason & audit details */}
-                      {p.verificationStatus === 'rejected' && p.rejectionReason && (
-                        <div className="mt-3 p-2.5 rounded-lg bg-rose-50 border border-rose-200 text-xs text-rose-800">
-                          <span className="font-semibold block">Rejection Reason:</span>
-                          <span>{p.rejectionReason}</span>
-                          {p.rejectedAt && (
-                            <span className="block text-[10px] text-rose-600 mt-1">
-                              Rejected on: {new Date(p.rejectedAt).toLocaleString('en-IN')}
+                      {/* Verified payment audit card */}
+                      {p.verificationStatus === 'verified' && (
+                        <div className="mt-2.5 p-2.5 rounded-lg bg-emerald-50 border border-emerald-200 text-xs text-emerald-800 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5">
+                          <div className="flex items-center gap-1.5 font-semibold">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                            <span>Payment verified & credited to merchant</span>
+                          </div>
+                          {p.verifiedAt && (
+                            <span className="text-[11px] text-emerald-700">
+                              Verified at: {new Date(p.verifiedAt).toLocaleString('en-IN')}
                             </span>
                           )}
                         </div>
                       )}
 
-                      {p.verificationStatus === 'verified' && p.verifiedAt && (
-                        <div className="mt-2 text-[11px] text-emerald-700">
-                          Verified on: {new Date(p.verifiedAt).toLocaleString('en-IN')}
+                      {/* Rejection reason & audit details */}
+                      {p.verificationStatus === 'rejected' && p.rejectionReason && (
+                        <div className="mt-2.5 p-2 rounded-lg bg-rose-50 border border-rose-200 text-xs text-rose-800">
+                          <span className="font-semibold block">Rejection Reason:</span>
+                          <span>{p.rejectionReason}</span>
+                          {p.rejectedAt && (
+                            <span className="block text-[10px] text-rose-600 mt-0.5">
+                              Rejected on: {new Date(p.rejectedAt).toLocaleString('en-IN')}
+                            </span>
+                          )}
                         </div>
                       )}
                     </div>
@@ -692,15 +781,15 @@ export default function OrderDetailsClient({ initialOrder }: OrderDetailsClientP
 
           {/* 4. COD Doorstep Collection Details (For COD Orders Only) */}
           {order.orderType === 'cod' && (
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-[0_2px_12px_rgba(0,0,0,0.03)] p-6">
-              <div className="flex items-center justify-between pb-4 border-b border-slate-100 mb-4">
+            <div className="bg-white rounded-xl border border-slate-100 shadow-[0_2px_12px_rgba(0,0,0,0.03)] p-4 sm:p-5">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-3.5">
                 <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-slate-500">
                   <Banknote className="w-4 h-4 text-slate-400" />
                   <span>Doorstep COD Collection Audit</span>
                 </div>
                 <div>
                   <span
-                    className={`text-xs font-bold px-3 py-1 rounded-full ${
+                    className={`text-xs font-bold px-2.5 py-0.5 rounded-full ${
                       order.paymentStatus === 'fully_paid'
                         ? 'bg-emerald-100 text-emerald-800'
                         : 'bg-amber-100 text-amber-800'
@@ -711,23 +800,23 @@ export default function OrderDetailsClient({ initialOrder }: OrderDetailsClientP
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-                <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-100">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
                   <span className="text-slate-400 block mb-0.5">₹100 Delivery Advance</span>
                   <span className="font-bold text-slate-900 text-sm">
                     ₹{order.advanceAmountPaid.toFixed(2)}
                   </span>
-                  <span className="block text-[11px] text-slate-500 mt-1">
+                  <span className="block text-[11px] text-slate-500 mt-0.5">
                     {order.advanceAmountPaid > 0 ? 'Verified & Paid Upfront' : 'Awaiting UPI Verification'}
                   </span>
                 </div>
 
-                <div className="p-3.5 rounded-xl bg-amber-50/50 border border-amber-200">
+                <div className="p-3 rounded-xl bg-amber-50/50 border border-amber-200">
                   <span className="text-amber-800 block mb-0.5">Remaining Balance Due</span>
                   <span className="font-bold text-amber-950 text-sm">
                     ₹{order.balanceAmountDue.toFixed(2)}
                   </span>
-                  <span className="block text-[11px] text-amber-700 mt-1">
+                  <span className="block text-[11px] text-amber-700 mt-0.5">
                     To be collected at doorstep in cash/UPI
                   </span>
                 </div>
@@ -735,7 +824,7 @@ export default function OrderDetailsClient({ initialOrder }: OrderDetailsClientP
 
               {/* Recorded collection information */}
               {order.codCollection ? (
-                <div className="mt-4 p-4 rounded-xl bg-emerald-50/50 border border-emerald-200 text-xs text-emerald-900 space-y-2">
+                <div className="mt-3.5 p-3 rounded-xl bg-emerald-50/50 border border-emerald-200 text-xs text-emerald-900 space-y-1.5">
                   <div className="flex items-center justify-between font-bold">
                     <span>Doorstep Collection Settled</span>
                     <span>₹{order.codCollection.amountCollected.toFixed(2)}</span>
@@ -758,12 +847,12 @@ export default function OrderDetailsClient({ initialOrder }: OrderDetailsClientP
                   </div>
                 </div>
               ) : order.balanceAmountDue > 0 && ['Dispatched', 'Delivered'].includes(order.status) ? (
-                <div className="mt-4 pt-4 border-t border-slate-100">
+                <div className="mt-3.5 pt-3 border-t border-slate-100">
                   <button
                     type="button"
                     onClick={() => setShowCodCollectionModal(true)}
                     disabled={isPending}
-                    className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold transition-colors shadow-xs flex items-center justify-center gap-2"
+                    className="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold transition-colors shadow-xs flex items-center justify-center gap-1.5"
                   >
                     <CheckCircle2 className="w-4 h-4" />
                     <span>Confirm Doorstep Cash Collected (₹{order.balanceAmountDue.toFixed(2)})</span>
@@ -775,18 +864,18 @@ export default function OrderDetailsClient({ initialOrder }: OrderDetailsClientP
         </div>
 
         {/* Right / Sidebar Column (span 1) */}
-        <div className="space-y-6">
+        <div className="space-y-5">
           {/* 1. Customer Information Card */}
-          <div className="bg-white rounded-2xl border border-slate-100 shadow-[0_2px_12px_rgba(0,0,0,0.03)] p-6">
-            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-slate-500 pb-3 border-b border-slate-100 mb-4">
+          <div className="bg-white rounded-xl border border-slate-100 shadow-[0_2px_12px_rgba(0,0,0,0.03)] p-4 sm:p-5">
+            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-slate-500 pb-2.5 border-b border-slate-100 mb-3">
               <User className="w-4 h-4 text-slate-400" />
               <span>Customer Details</span>
             </div>
 
-            <div className="space-y-3 text-xs">
+            <div className="space-y-2.5 text-xs">
               <div>
                 <span className="text-slate-400 block text-[11px]">Name</span>
-                <span className="font-bold text-slate-800 text-sm">{order.shippingAddress.recipientName}</span>
+                <span className="font-bold text-slate-800 text-xs sm:text-sm">{order.shippingAddress.recipientName}</span>
               </div>
               <div>
                 <span className="text-slate-400 block text-[11px]">Email</span>
@@ -800,8 +889,8 @@ export default function OrderDetailsClient({ initialOrder }: OrderDetailsClientP
           </div>
 
           {/* 2. Shipping Address Card */}
-          <div className="bg-white rounded-2xl border border-slate-100 shadow-[0_2px_12px_rgba(0,0,0,0.03)] p-6">
-            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-slate-500 pb-3 border-b border-slate-100 mb-4">
+          <div className="bg-white rounded-xl border border-slate-100 shadow-[0_2px_12px_rgba(0,0,0,0.03)] p-4 sm:p-5">
+            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-slate-500 pb-2.5 border-b border-slate-100 mb-3">
               <MapPin className="w-4 h-4 text-slate-400" />
               <span>Shipping Address</span>
             </div>
@@ -813,13 +902,13 @@ export default function OrderDetailsClient({ initialOrder }: OrderDetailsClientP
                 {order.shippingAddress.city}, {order.shippingAddress.state} -{' '}
                 <span className="font-mono font-semibold">{order.shippingAddress.postalCode}</span>
               </div>
-              <div className="pt-2 text-slate-500">Phone: {order.shippingAddress.phone}</div>
+              <div className="pt-1.5 text-slate-500">Phone: {order.shippingAddress.phone}</div>
             </div>
 
             {order.customerNotes && (
-              <div className="mt-4 pt-3 border-t border-slate-100 text-xs">
+              <div className="mt-3 pt-2.5 border-t border-slate-100 text-xs">
                 <span className="font-semibold text-slate-500 block mb-0.5">Customer Delivery Notes:</span>
-                <p className="text-slate-700 italic bg-slate-50 p-2.5 rounded-lg border border-slate-100">
+                <p className="text-slate-700 italic bg-slate-50 p-2 rounded-lg border border-slate-100">
                   &ldquo;{order.customerNotes}&rdquo;
                 </p>
               </div>
@@ -827,13 +916,13 @@ export default function OrderDetailsClient({ initialOrder }: OrderDetailsClientP
           </div>
 
           {/* 3. Order Financial Summary Card */}
-          <div className="bg-white rounded-2xl border border-slate-100 shadow-[0_2px_12px_rgba(0,0,0,0.03)] p-6">
-            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-slate-500 pb-3 border-b border-slate-100 mb-4">
+          <div className="bg-white rounded-xl border border-slate-100 shadow-[0_2px_12px_rgba(0,0,0,0.03)] p-4 sm:p-5">
+            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-slate-500 pb-2.5 border-b border-slate-100 mb-3">
               <CreditCard className="w-4 h-4 text-slate-400" />
               <span>Financial Summary</span>
             </div>
 
-            <div className="space-y-2.5 text-xs">
+            <div className="space-y-2 text-xs">
               <div className="flex justify-between text-slate-600">
                 <span>Product Subtotal</span>
                 <span className="font-semibold text-slate-800">₹{order.subtotal.toFixed(2)}</span>
@@ -843,19 +932,19 @@ export default function OrderDetailsClient({ initialOrder }: OrderDetailsClientP
                 <span className="font-semibold text-slate-800">₹{order.deliveryFee.toFixed(2)}</span>
               </div>
 
-              <div className="pt-2 border-t border-slate-100 flex justify-between text-sm font-bold text-slate-900">
+              <div className="pt-2 border-t border-slate-100 flex justify-between text-xs sm:text-sm font-bold text-slate-900">
                 <span>Total Amount</span>
                 <span>₹{order.totalAmount.toFixed(2)}</span>
               </div>
 
-              <div className="pt-2 border-t border-slate-100 flex justify-between text-xs text-emerald-700">
+              <div className="pt-1.5 border-t border-slate-100 flex justify-between text-xs text-emerald-700">
                 <span>Total Paid to Date</span>
                 <span className="font-bold">
                   ₹{(order.orderType === 'cod' ? order.advanceAmountPaid + order.codBalanceCollected : order.paymentStatus === 'fully_paid' ? order.totalAmount : 0).toFixed(2)}
                 </span>
               </div>
 
-              <div className="flex justify-between text-xs font-bold text-slate-900 bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+              <div className="flex justify-between text-xs font-bold text-slate-900 bg-slate-50 p-2 rounded-lg border border-slate-100">
                 <span>Outstanding Balance</span>
                 <span className={order.balanceAmountDue > 0 ? 'text-amber-700' : 'text-slate-700'}>
                   ₹{order.balanceAmountDue.toFixed(2)}

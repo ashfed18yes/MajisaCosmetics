@@ -23,29 +23,32 @@ export default async function CheckoutPage() {
     redirect('/sign-in?redirectTo=/checkout');
   }
 
-  // 1. Fetch customer profile for default recipient info
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('full_name, phone, email')
-    .eq('id', user.id)
-    .maybeSingle();
+  // Parallelize independent queries: profile, saved addresses, delivery setting, and UPI configuration
+  const [profileRes, addressesRes, deliveryRes, upiConfig] = await Promise.all([
+    supabase
+      .from('profiles')
+      .select('full_name, phone, email')
+      .eq('id', user.id)
+      .maybeSingle(),
+    supabase
+      .from('addresses')
+      .select(
+        'id, address_type, is_default, recipient_name, street_address, city, state, postal_code, phone, created_at'
+      )
+      .eq('user_id', user.id)
+      .order('is_default', { ascending: false })
+      .order('created_at', { ascending: false }),
+    supabase
+      .from('store_settings')
+      .select('value')
+      .eq('key', 'delivery_charges')
+      .maybeSingle(),
+    getUpiPaymentConfig(),
+  ]);
 
-  // 2. Fetch customer's saved addresses under RLS
-  const { data: rawAddresses } = await supabase
-    .from('addresses')
-    .select(
-      'id, address_type, is_default, recipient_name, street_address, city, state, postal_code, phone, created_at'
-    )
-    .eq('user_id', user.id)
-    .order('is_default', { ascending: false })
-    .order('created_at', { ascending: false });
-
-  // 3. Fetch store delivery charge setting (defaults to Rs 100)
-  const { data: deliverySetting } = await supabase
-    .from('store_settings')
-    .select('value')
-    .eq('key', 'delivery_charges')
-    .maybeSingle();
+  const profile = profileRes.data;
+  const rawAddresses = addressesRes.data;
+  const deliverySetting = deliveryRes.data;
 
   let deliveryFee = 100.0;
   if (deliverySetting?.value && typeof deliverySetting.value === 'object') {
@@ -57,9 +60,6 @@ export default async function CheckoutPage() {
       deliveryFee = Number(settingVal.delivery_fee);
     }
   }
-
-  // 4. Verify UPI configuration
-  const upiConfig = await getUpiPaymentConfig();
 
   const savedAddresses: CustomerAddress[] = (rawAddresses || []).map((addr) => ({
     id: addr.id,

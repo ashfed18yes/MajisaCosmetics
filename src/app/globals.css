@@ -50,6 +50,19 @@ body {
   color: #0B4145;
 }
 
+@layer components {
+  /* Standard Compact Interactive Controls */
+  .btn-compact {
+    @apply h-9 sm:h-10 px-4 text-xs font-bold rounded-full inline-flex items-center justify-center gap-1.5 transition-all select-none;
+  }
+  .input-compact {
+    @apply h-9 sm:h-10 px-3.5 text-xs sm:text-sm rounded-xl border border-[#D4E5E3] bg-white transition-all focus:outline-none focus:ring-1.5 focus:ring-[#0B4145];
+  }
+  .card-compact {
+    @apply bg-white rounded-2xl border border-[#D4E5E3] p-4 sm:p-5 shadow-xs;
+  }
+}
+
 @layer utilities {
   .text-balance {
     text-wrap: balance;

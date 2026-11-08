@@ -106,44 +106,44 @@ function SignInContent() {
   };
 
   return (
-    <div className="min-h-[75vh] flex items-center justify-center px-4 sm:px-6 lg:px-8 py-10 sm:py-12">
-      <div className="w-full max-w-md bg-white rounded-[22px] sm:rounded-[24px] p-6 sm:p-8 border border-[#D4E5E3] shadow-card space-y-5">
+    <div className="min-h-[70vh] flex items-center justify-center px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+      <div className="w-full max-w-md bg-white rounded-[18px] sm:rounded-[20px] p-5 sm:p-6 border border-[#D4E5E3] shadow-card space-y-4">
         {/* Header */}
-        <div className="text-center space-y-1.5">
-          <span className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-[#DDF3F2] text-[#128F92] text-xs uppercase tracking-wider font-bold">
-            <Sparkles className="w-3.5 h-3.5 text-[#128F92]" />
+        <div className="text-center space-y-1">
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#DDF3F2] text-[#128F92] text-[11px] uppercase tracking-wider font-bold">
+            <Sparkles className="w-3 h-3 text-[#128F92]" />
             <span>Member Access</span>
           </span>
-          <h1 className="font-serif text-2xl sm:text-3xl text-[#0B4145] font-bold">
+          <h1 className="font-serif text-xl sm:text-2xl text-[#0B4145] font-bold">
             Welcome Back
           </h1>
-          <p className="text-xs sm:text-sm text-[#687F8D]">
+          <p className="text-xs text-[#687F8D]">
             Sign in to access your saved formulations, order history, and privileges.
           </p>
         </div>
 
         {/* Error Alert */}
         {error && (
-          <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-xs sm:text-sm text-red-700 animate-in fade-in">
+          <div className="p-2.5 rounded-lg bg-red-50 border border-red-200 text-xs text-red-700 animate-in fade-in">
             {error}
           </div>
         )}
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="space-y-3.5">
+        <form onSubmit={handleSubmit} className="space-y-3">
           <div>
             <label className="block text-xs uppercase tracking-wider font-bold text-[#102F32] mb-1">
               Email Address
             </label>
             <div className="relative">
-              <Mail className="w-4 h-4 text-[#687F8D] absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <Mail className="w-4 h-4 text-[#687F8D] absolute left-3 top-1/2 -translate-y-1/2" />
               <input
                 type="email"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="name@domain.com"
-                className="w-full pl-10 pr-4 py-2.5 bg-[#F0F9F8] border border-[#DDF3F2] rounded-xl text-sm text-[#102F32] placeholder-[#687F8D]/60 focus:outline-none focus:border-[#128F92] transition-colors font-medium"
+                className="w-full pl-9 pr-3.5 py-2 bg-[#F0F9F8] border border-[#DDF3F2] rounded-lg text-xs sm:text-sm text-[#102F32] placeholder-[#687F8D]/60 focus:outline-none focus:border-[#128F92] transition-colors font-medium"
               />
             </div>
           </div>
@@ -156,25 +156,25 @@ function SignInContent() {
               <button
                 type="button"
                 onClick={() => alert('Password recovery will be connected with Supabase Auth.')}
-                className="text-xs text-[#128F92] hover:text-[#0B4145] font-semibold hover:underline"
+                className="text-[11px] text-[#128F92] hover:text-[#0B4145] font-semibold hover:underline"
               >
                 Forgot Password?
               </button>
             </div>
             <div className="relative">
-              <Lock className="w-4 h-4 text-[#687F8D] absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <Lock className="w-4 h-4 text-[#687F8D] absolute left-3 top-1/2 -translate-y-1/2" />
               <input
                 type={showPassword ? 'text' : 'password'}
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full pl-10 pr-10 py-2.5 bg-[#F0F9F8] border border-[#DDF3F2] rounded-xl text-sm text-[#102F32] placeholder-[#687F8D]/60 focus:outline-none focus:border-[#128F92] transition-colors font-medium"
+                className="w-full pl-9 pr-9 py-2 bg-[#F0F9F8] border border-[#DDF3F2] rounded-lg text-xs sm:text-sm text-[#102F32] placeholder-[#687F8D]/60 focus:outline-none focus:border-[#128F92] transition-colors font-medium"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#687F8D] hover:text-[#0B4145]"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-[#687F8D] hover:text-[#0B4145]"
                 aria-label={showPassword ? 'Hide password' : 'Show password'}
               >
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -185,23 +185,23 @@ function SignInContent() {
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full h-[46px] sm:h-[48px] rounded-full bg-[#128F92] hover:bg-[#0B4145] text-white text-xs sm:text-sm uppercase tracking-widest font-bold transition-all shadow-cta flex items-center justify-center gap-2 group disabled:opacity-60"
+            className="w-full h-[40px] sm:h-[42px] rounded-full bg-[#128F92] hover:bg-[#0B4145] text-white text-xs uppercase tracking-widest font-bold transition-all shadow-cta flex items-center justify-center gap-2 group disabled:opacity-60"
           >
             {isLoading ? (
               <span>Authenticating...</span>
             ) : (
               <>
                 <span>Sign In to Account</span>
-                <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+                <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
               </>
             )}
           </button>
         </form>
 
         {/* Divider */}
-        <div className="relative flex items-center justify-center">
+        <div className="relative flex items-center justify-center pt-1">
           <div className="border-t border-[#DDF3F2] w-full" />
-          <span className="bg-white px-3 text-xs uppercase tracking-wider text-[#687F8D] shrink-0 font-medium">
+          <span className="bg-white px-2.5 text-[11px] uppercase tracking-wider text-[#687F8D] shrink-0 font-medium">
             Or continue with
           </span>
           <div className="border-t border-[#DDF3F2] w-full" />
@@ -212,7 +212,7 @@ function SignInContent() {
           type="button"
           onClick={handleGoogleSignIn}
           disabled={isGoogleLoading || isLoading}
-          className="w-full h-[50px] px-4 rounded-full border border-[#DDF3F2] hover:bg-[#F0F9F8] text-[#102F32] text-xs sm:text-sm font-bold transition-colors flex items-center justify-center gap-2.5 shadow-soft disabled:opacity-60"
+          className="w-full h-[40px] sm:h-[42px] px-4 rounded-full border border-[#DDF3F2] hover:bg-[#F0F9F8] text-[#102F32] text-xs font-bold transition-colors flex items-center justify-center gap-2 shadow-soft disabled:opacity-60"
         >
           <svg className="w-4 h-4" viewBox="0 0 24 24">
             <path
@@ -236,7 +236,7 @@ function SignInContent() {
         </button>
 
         {/* Footer Link */}
-        <p className="text-center text-xs sm:text-sm text-[#687F8D]">
+        <p className="text-center text-xs text-[#687F8D] pt-0.5">
           New to Majisa Cosmetics?{' '}
           <Link href="/sign-up" className="font-bold text-[#128F92] underline hover:text-[#0B4145]">
             Create an Account

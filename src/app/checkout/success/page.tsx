@@ -20,15 +20,16 @@ interface SuccessPageProps {
 export default async function CheckoutSuccessPage({
   searchParams,
 }: SuccessPageProps) {
-  const { order_id: orderId, order_number: orderNumber } = await searchParams;
-
   const supabase = await createClient();
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser();
+  const [authRes, params] = await Promise.all([
+    supabase.auth.getUser(),
+    searchParams,
+  ]);
 
-  if (!user || authError) {
+  const user = authRes.data?.user;
+  const { order_id: orderId, order_number: orderNumber } = params;
+
+  if (!user || authRes.error) {
     redirect('/sign-in?redirectTo=/account');
   }
 
