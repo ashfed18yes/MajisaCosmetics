@@ -16,56 +16,51 @@ export default async function AdminDashboardPage() {
   await requireAdmin();
   const adminClient = createAdminClient();
 
-  // 1. Fetch real orders from Supabase with authoritative schema columns
-  const { data: rawOrders, error: ordersError } = await adminClient
-    .from('orders')
-    .select(`
-      id,
-      order_number,
-      order_type,
-      status,
-      payment_status,
-      subtotal,
-      delivery_fee,
-      total_amount,
-      advance_amount_paid,
-      balance_amount_due,
-      cod_balance_collected,
-      shipping_address_snapshot,
-      created_at,
-      customer:profiles!orders_user_id_fkey ( full_name, email, phone ),
-      payments (
+  // 1. Fetch real orders and confirmed doorstep collections concurrently from Supabase
+  const [
+    { data: rawOrders, error: ordersError },
+    { data: rawCollections, error: collectionsError }
+  ] = await Promise.all([
+    adminClient
+      .from('orders')
+      .select(`
         id,
-        attempt_number,
-        verification_status,
-        utr_reference,
-        created_at
-      )
-    `)
-    .order('created_at', { ascending: false });
-
-  if (ordersError) {
-    console.error('Error fetching dashboard orders:', {
-      message: ordersError.message,
-      code: ordersError.code,
-      details: ordersError.details,
-    });
-  }
-
-  // 2. Fetch confirmed doorstep collections from public.order_collections
-  const { data: rawCollections, error: collectionsError } = await adminClient
-    .from('order_collections')
-    .select(`
-      id,
-      order_id,
-      amount_collected,
-      collection_type,
-      payment_method,
-      collected_at,
-      created_at,
-      orders ( id, order_number )
-    `)
-    .order('collected_at', { ascending: false });
+        order_number,
+        order_type,
+        status,
+        payment_status,
+        subtotal,
+        delivery_fee,
+        total_amount,
+        advance_amount_paid,
+        balance_amount_due,
+        cod_balance_collected,
+        shipping_address_snapshot,
+        created_at,
+        customer:profiles!orders_user_id_fkey ( full_name, email, phone ),
+        payments (
+          id,
+          attempt_number,
+          verification_status,
+          utr_reference,
+          created_at
+        )
+      `)
+      .order('created_at', { ascending: false }),
+    adminClient
+      .from('order_collections')
+      .select(`
+        id,
+        order_id,
+        amount_collected,
+        collection_type,
+        payment_method,
+        collected_at,
+        created_at,
+        orders ( id, order_number )
+      `)
+      .order('collected_at', { ascending: false }),
+  ]);
 
   if (collectionsError) {
     console.error('Error fetching dashboard collections:', {

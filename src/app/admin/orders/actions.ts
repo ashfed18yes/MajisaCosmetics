@@ -75,6 +75,35 @@ export async function verifyPaymentAction(input: VerifyPaymentInput) {
     });
 
     if (rpcError || !rpcResult) {
+      // Idempotent handling: If payment is already in verified state, treat as success and revalidate
+      if (rpcError?.message && rpcError.message.includes('current: verified')) {
+        const { data: existingPayment } = await supabase
+          .from('payments')
+          .select('id, order_id, verification_status, verified_at, amount_expected')
+          .eq('id', input.paymentId)
+          .maybeSingle();
+
+        const orderId = existingPayment?.order_id;
+        if (orderId) {
+          revalidatePath('/admin');
+          revalidatePath('/admin/orders/online');
+          revalidatePath('/admin/orders/cod');
+          revalidatePath(`/admin/orders/${orderId}`);
+        }
+
+        return {
+          success: true,
+          alreadyVerified: true,
+          message: 'Payment has already been verified and confirmed in the database.',
+          data: {
+            order_id: orderId,
+            payment_id: input.paymentId,
+            verification_status: 'verified',
+            verified_at: existingPayment?.verified_at,
+          },
+        };
+      }
+
       console.error('RPC verify_payment_admin error:', rpcError);
       return {
         success: false,
@@ -131,6 +160,13 @@ export async function rejectPaymentAction(input: RejectPaymentInput) {
     });
 
     if (rpcError || !rpcResult) {
+      if (rpcError?.message && rpcError.message.includes('current: verified')) {
+        return {
+          success: false,
+          error: 'Cannot reject this payment attempt: it has already been verified and credited in the database.',
+        };
+      }
+
       console.error('RPC reject_payment_admin error:', rpcError);
       return {
         success: false,

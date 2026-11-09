@@ -1,3 +1,4 @@
+import { cache } from 'react';
 import { createClient } from '@/lib/supabase/server';
 import { Product, Category, Brand, ProductVariant, ProductSize } from '@/types';
 import {
@@ -109,7 +110,7 @@ function mapSupabaseBrand(b: any): Brand {
  * Fetches all available products exclusively from Supabase.
  * Returns only real database products; returns empty array if none exist or on error.
  */
-export async function getStorefrontProducts(): Promise<Product[]> {
+export const getStorefrontProducts = cache(async (): Promise<Product[]> => {
   try {
     const supabase = await createClient();
     const { data: rawProducts, error } = await supabase
@@ -135,13 +136,13 @@ export async function getStorefrontProducts(): Promise<Product[]> {
     console.error('Unexpected error in getStorefrontProducts:', err);
     return [];
   }
-}
+});
 
 /**
  * Retrieves a single product by its URL slug directly from Supabase.
  * Returns null if not found or on error (no mock fallback).
  */
-export async function getStorefrontProductBySlug(slug: string): Promise<Product | null> {
+export const getStorefrontProductBySlug = cache(async (slug: string): Promise<Product | null> => {
   if (!slug) return null;
 
   try {
@@ -168,7 +169,7 @@ export async function getStorefrontProductBySlug(slug: string): Promise<Product 
     console.error('Error fetching product by slug:', slug, err);
     return null;
   }
-}
+});
 
 /**
  * Fetches all categories from Supabase merged with mock categories.

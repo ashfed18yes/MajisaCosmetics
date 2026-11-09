@@ -31,10 +31,10 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
         Promise.all([
           supabase
             .from('products')
-            .select('*, brands(name, slug), categories(name, slug), product_images(*)')
+            .select('id, name, slug, base_price, original_price, rating, review_count, description, is_available, brands(name, slug), categories(name, slug), product_images(secure_url)')
             .eq('is_available', true),
-          supabase.from('categories').select('*').eq('is_active', true),
-          supabase.from('brands').select('*').eq('is_active', true),
+          supabase.from('categories').select('id, slug, name, tagline, description, image_url').eq('is_active', true),
+          supabase.from('brands').select('id, slug, name, tagline, description, logo_url').eq('is_active', true),
         ]).then(([{ data: rawProds }, { data: rawCats }, { data: rawBrands }]) => {
           if (rawProds && rawProds.length > 0) {
             const liveProds: Product[] = rawProds.map((p: any) => ({

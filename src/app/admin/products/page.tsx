@@ -12,42 +12,44 @@ export default async function AdminProductsPage() {
   await requireAdmin();
   const adminClient = createAdminClient();
 
-  // 1. Fetch products with brand, category, and images
-  const { data: rawProducts, error: productsError } = await adminClient
-    .from('products')
-    .select(`
-      id,
-      name,
-      slug,
-      base_price,
-      original_price,
-      sku,
-      stock_quantity,
-      is_available,
-      is_featured,
-      is_bestseller,
-      created_at,
-      brands ( id, name ),
-      categories ( id, name ),
-      product_images ( secure_url, is_primary, display_order )
-    `)
-    .order('created_at', { ascending: false });
+  // Concurrently fetch products, brands, and categories via Promise.all
+  const [
+    { data: rawProducts, error: productsError },
+    { data: rawBrands },
+    { data: rawCategories }
+  ] = await Promise.all([
+    adminClient
+      .from('products')
+      .select(`
+        id,
+        name,
+        slug,
+        base_price,
+        original_price,
+        sku,
+        stock_quantity,
+        is_available,
+        is_featured,
+        is_bestseller,
+        created_at,
+        brands ( id, name ),
+        categories ( id, name ),
+        product_images ( secure_url, is_primary, display_order )
+      `)
+      .order('created_at', { ascending: false }),
+    adminClient
+      .from('brands')
+      .select('id, name')
+      .order('name', { ascending: true }),
+    adminClient
+      .from('categories')
+      .select('id, name')
+      .order('name', { ascending: true }),
+  ]);
 
   if (productsError) {
     console.error('Error fetching admin products:', productsError);
   }
-
-  // 2. Fetch brands for filter dropdown
-  const { data: rawBrands } = await adminClient
-    .from('brands')
-    .select('id, name')
-    .order('name', { ascending: true });
-
-  // 3. Fetch categories for filter dropdown
-  const { data: rawCategories } = await adminClient
-    .from('categories')
-    .select('id, name')
-    .order('name', { ascending: true });
 
   // 4. Transform data into normalized clean format
   const products = (rawProducts || []).map((p: any) => {

@@ -132,6 +132,7 @@ export default function AdminDashboardClient({
         <div className="flex items-center gap-2.5">
           <Link
             href="/admin/orders/online"
+            prefetch={true}
             className="flex items-center gap-1.5 bg-[#2563EB] hover:bg-blue-700 text-white text-xs font-semibold px-3.5 py-2 rounded-xl shadow-xs transition-colors"
           >
             <ShoppingBag className="w-3.5 h-3.5" />
@@ -264,6 +265,7 @@ export default function AdminDashboardClient({
           <div className="flex items-center gap-2">
             <Link
               href="/admin/orders/online"
+              prefetch={true}
               className="text-xs font-semibold text-[#2563EB] hover:underline"
             >
               Online Queue &rarr;
@@ -271,6 +273,7 @@ export default function AdminDashboardClient({
             <span className="text-slate-300">|</span>
             <Link
               href="/admin/orders/cod"
+              prefetch={true}
               className="text-xs font-semibold text-[#2563EB] hover:underline"
             >
               COD Advance Queue &rarr;
@@ -301,7 +304,7 @@ export default function AdminDashboardClient({
                 {pendingVerifications.map((order) => (
                   <tr key={order.id} className="hover:bg-amber-50/30 transition-colors">
                     <td className="py-2 px-2 font-bold text-slate-900">
-                      <Link href={`/admin/orders/${order.id}`} className="hover:text-[#2563EB]">
+                      <Link href={`/admin/orders/${order.id}`} prefetch={true} className="hover:text-[#2563EB]">
                         {order.orderNumber}
                       </Link>
                     </td>
@@ -318,6 +321,7 @@ export default function AdminDashboardClient({
                     <td className="py-2 px-2 text-right">
                       <Link
                         href={`/admin/orders/${order.id}`}
+                        prefetch={true}
                         className="inline-flex items-center gap-1 px-2.5 py-1 bg-[#2563EB] hover:bg-blue-700 text-white rounded-lg text-xs font-semibold shadow-xs transition-colors"
                       >
                         <span>Review</span>
@@ -340,6 +344,7 @@ export default function AdminDashboardClient({
             <h2 className="text-sm sm:text-base font-bold text-slate-900">Recent Customer Orders</h2>
             <Link
               href="/admin/orders/online"
+              prefetch={true}
               className="text-xs font-semibold text-[#2563EB] hover:underline flex items-center gap-1"
             >
               <span>View All</span>
@@ -369,7 +374,7 @@ export default function AdminDashboardClient({
                   {recentOrders.map((order) => (
                     <tr key={order.id} className="hover:bg-slate-50/60 transition-colors">
                       <td className="py-2 px-2 font-bold text-slate-900">
-                        <Link href={`/admin/orders/${order.id}`} className="hover:text-[#2563EB]">
+                        <Link href={`/admin/orders/${order.id}`} prefetch={true} className="hover:text-[#2563EB]">
                           {order.orderNumber}
                         </Link>
                       </td>
@@ -385,6 +390,7 @@ export default function AdminDashboardClient({
                       <td className="py-2 px-2 text-right">
                         <Link
                           href={`/admin/orders/${order.id}`}
+                          prefetch={true}
                           title="Open order details"
                           className="p-1 text-slate-400 hover:text-[#2563EB] hover:bg-blue-50 rounded-lg inline-flex items-center transition-colors"
                         >
@@ -406,6 +412,7 @@ export default function AdminDashboardClient({
               <h2 className="text-sm sm:text-base font-bold text-slate-900">Recent COD Collections</h2>
               <Link
                 href="/admin/orders/cod"
+                prefetch={true}
                 className="text-xs font-semibold text-[#2563EB] hover:underline"
               >
                 COD Orders
@@ -428,6 +435,7 @@ export default function AdminDashboardClient({
                     <div>
                       <Link
                         href={`/admin/orders/${col.orderId}`}
+                        prefetch={true}
                         className="font-bold text-slate-900 hover:text-[#2563EB] block"
                       >
                         {col.orderNumber}

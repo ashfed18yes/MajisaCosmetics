@@ -193,27 +193,14 @@ export default function OrderDetailsClient({ initialOrder }: OrderDetailsClientP
       });
 
       if (!res.success) {
-        // If the database states it is already verified, update the UI cleanly
-        if (res.error && res.error.includes('current: verified')) {
-          setActionSuccess('Payment is already verified in the database. Updated view.');
-          setOrder((prev) => ({
-            ...prev,
-            status: 'Confirmed',
-            paymentStatus: prev.orderType === 'online' ? 'fully_paid' : 'advance_paid',
-            advanceAmountPaid: prev.orderType === 'online' ? prev.totalAmount : expectedAmount,
-            balanceAmountDue: prev.orderType === 'online' ? 0 : prev.subtotal,
-            payments: prev.payments.map((p) =>
-              p.id === paymentId
-                ? { ...p, verificationStatus: 'verified', verifiedAt: p.verifiedAt || new Date().toISOString() }
-                : p
-            ),
-          }));
-          router.refresh();
-          return;
-        }
         setActionError(res.error || 'Payment verification failed.');
       } else {
-        setActionSuccess('Payment verified successfully! Order is now Confirmed.');
+        const isAlready = Boolean((res as any).alreadyVerified);
+        setActionSuccess(
+          isAlready
+            ? 'Payment is already verified and confirmed in the database. Status synchronized.'
+            : 'Payment verified successfully! Order is now Confirmed.'
+        );
         // Update client state immediately so badges update without waiting for network refresh
         setOrder((prev) => ({
           ...prev,
@@ -223,7 +210,7 @@ export default function OrderDetailsClient({ initialOrder }: OrderDetailsClientP
           balanceAmountDue: prev.orderType === 'online' ? 0 : prev.subtotal,
           payments: prev.payments.map((p) =>
             p.id === paymentId
-              ? { ...p, verificationStatus: 'verified', verifiedAt: new Date().toISOString() }
+              ? { ...p, verificationStatus: 'verified', verifiedAt: p.verifiedAt || new Date().toISOString() }
               : p
           ),
         }));

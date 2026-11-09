@@ -29,7 +29,7 @@ import {
   updateFulfillmentStatusAction,
   getSignedProofUrlAction,
 } from '../actions';
-import { AdminOrderRow } from '../online/AdminOnlineOrdersClient';
+import { AdminOrderRow, AdminPaginationData } from '../online/AdminOnlineOrdersClient';
 
 // Sample COD preview records matching Image 2 style
 const REFERENCE_COD_SAMPLES: (AdminOrderRow & { balanceDue: number; advancePaid: number })[] = [
@@ -143,16 +143,27 @@ const REFERENCE_COD_SAMPLES: (AdminOrderRow & { balanceDue: number; advancePaid:
 
 interface AdminCodOrdersClientProps {
   initialLiveOrders: (AdminOrderRow & { balanceDue: number; advancePaid: number })[];
+  pagination?: AdminPaginationData;
 }
 
 export default function AdminCodOrdersClient({
   initialLiveOrders = [],
+  pagination,
 }: AdminCodOrdersClientProps) {
   const router = useRouter();
   // Always default to real live database COD orders
   const [dataMode, setDataMode] = useState<'live' | 'sample'>('live');
-  const [activeTab, setActiveTab] = useState<'All' | 'Processing' | 'Shipped' | 'Pending' | 'Cancelled'>('All');
-  const [searchQuery, setSearchQuery] = useState('');
+  const [liveOrders, setLiveOrders] = useState<(AdminOrderRow & { balanceDue: number; advancePaid: number })[]>(initialLiveOrders);
+  const [samplePage, setSamplePage] = useState(1);
+  const [activeTab, setActiveTab] = useState<'All' | 'Processing' | 'Shipped' | 'Pending' | 'Cancelled'>(
+    (pagination?.statusFilter as any) || 'All'
+  );
+  const [searchQuery, setSearchQuery] = useState(pagination?.searchQuery || '');
+
+  // Keep live orders state synchronized with fresh server props
+  React.useEffect(() => {
+    setLiveOrders(initialLiveOrders);
+  }, [initialLiveOrders]);
   
   const [selectedOrder, setSelectedOrder] = useState<(AdminOrderRow & { balanceDue: number; advancePaid: number }) | null>(null);
   const [isPendingAction, startTransition] = useTransition();
@@ -165,16 +176,72 @@ export default function AdminCodOrdersClient({
   const [proofPreviewUrl, setProofPreviewUrl] = useState<string | null>(null);
   const [isLoadingProof, setIsLoadingProof] = useState(false);
 
+  const activePagination: AdminPaginationData = useMemo(() => {
+    if (dataMode === 'live' && pagination) {
+      return pagination;
+    }
+    const sampleSize = 25;
+    const totalCount = REFERENCE_COD_SAMPLES.length;
+    return {
+      page: samplePage,
+      pageSize: sampleSize,
+      totalCount,
+      totalPages: Math.max(1, Math.ceil(totalCount / sampleSize)),
+      statusFilter: activeTab,
+      searchQuery,
+    };
+  }, [dataMode, pagination, samplePage, activeTab, searchQuery]);
+
+  const handlePageChange = (newPage: number) => {
+    if (dataMode === 'live') {
+      const params = new URLSearchParams();
+      params.set('page', String(newPage));
+      if (activeTab !== 'All') params.set('status', activeTab);
+      if (searchQuery.trim()) params.set('search', searchQuery.trim());
+      startTransition(() => {
+        router.push(`/admin/orders/cod?${params.toString()}`);
+      });
+    } else {
+      setSamplePage(newPage);
+    }
+  };
+
+  const handleTabChange = (tab: 'All' | 'Processing' | 'Shipped' | 'Pending' | 'Cancelled') => {
+    setActiveTab(tab);
+    if (dataMode === 'live') {
+      const params = new URLSearchParams();
+      params.set('page', '1');
+      if (tab !== 'All') params.set('status', tab);
+      if (searchQuery.trim()) params.set('search', searchQuery.trim());
+      startTransition(() => {
+        router.push(`/admin/orders/cod?${params.toString()}`);
+      });
+    }
+  };
+
+  const handleSearchSubmit = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (dataMode === 'live') {
+      const params = new URLSearchParams();
+      params.set('page', '1');
+      if (activeTab !== 'All') params.set('status', activeTab);
+      if (searchQuery.trim()) params.set('search', searchQuery.trim());
+      startTransition(() => {
+        router.push(`/admin/orders/cod?${params.toString()}`);
+      });
+    }
+  };
+
   const currentOrders = useMemo(() => {
-    return dataMode === 'live' ? initialLiveOrders : REFERENCE_COD_SAMPLES;
-  }, [dataMode, initialLiveOrders]);
+    return dataMode === 'live' ? liveOrders : REFERENCE_COD_SAMPLES;
+  }, [dataMode, liveOrders]);
 
   const filteredOrders = useMemo(() => {
     return currentOrders.filter((order) => {
       if (activeTab !== 'All' && order.displayStatus !== activeTab) {
         return false;
       }
-      if (searchQuery.trim()) {
+      if (searchQuery.trim() && dataMode === 'sample') {
         const query = searchQuery.toLowerCase().trim();
         const matchesId = order.orderNumber.toLowerCase().includes(query);
         const matchesCustomer = order.customerName.toLowerCase().includes(query);
@@ -185,7 +252,7 @@ export default function AdminCodOrdersClient({
       }
       return true;
     });
-  }, [currentOrders, activeTab, searchQuery]);
+  }, [currentOrders, activeTab, searchQuery, dataMode]);
 
   const handleInspectOrder = async (order: AdminOrderRow & { balanceDue: number; advancePaid: number }) => {
     setSelectedOrder(order);
@@ -247,10 +314,26 @@ export default function AdminCodOrdersClient({
                 paymentStatus: 'advance_paid',
                 advancePaid: 100,
                 activePayment: prev.activePayment
-                  ? { ...prev.activePayment, verificationStatus: 'verified' }
+                  ? { ...prev.activePayment, status: 'verified' }
                   : null,
               }
             : null
+        );
+        setLiveOrders((prevList) =>
+          prevList.map((ord) =>
+            ord.id === selectedOrder.id
+              ? {
+                  ...ord,
+                  status: 'Confirmed',
+                  displayStatus: 'Processing',
+                  paymentStatus: 'advance_paid',
+                  advancePaid: 100,
+                  activePayment: ord.activePayment
+                    ? { ...ord.activePayment, status: 'verified' }
+                    : null,
+                }
+              : ord
+          )
         );
         router.refresh();
       }
@@ -287,6 +370,17 @@ export default function AdminCodOrdersClient({
                 balanceDue: 0,
               }
             : null
+        );
+        setLiveOrders((prevList) =>
+          prevList.map((ord) =>
+            ord.id === selectedOrder.id
+              ? {
+                  ...ord,
+                  paymentStatus: 'fully_paid',
+                  balanceDue: 0,
+                }
+              : ord
+          )
         );
         router.refresh();
       }
@@ -332,10 +426,23 @@ export default function AdminCodOrdersClient({
                 ...prev,
                 paymentStatus: 'pending',
                 activePayment: prev.activePayment
-                  ? { ...prev.activePayment, verificationStatus: 'rejected' }
+                  ? { ...prev.activePayment, status: 'rejected' }
                   : null,
               }
             : null
+        );
+        setLiveOrders((prevList) =>
+          prevList.map((ord) =>
+            ord.id === selectedOrder.id
+              ? {
+                  ...ord,
+                  paymentStatus: 'pending',
+                  activePayment: ord.activePayment
+                    ? { ...ord.activePayment, status: 'rejected' }
+                    : null,
+                }
+              : ord
+          )
         );
         router.refresh();
       }
@@ -380,8 +487,23 @@ export default function AdminCodOrdersClient({
                 ...prev,
                 status: newStatus,
                 displayStatus: targetDisplay,
+                courierPartner: courierName || prev.courierPartner,
+                trackingNumber: trackingNum || prev.trackingNumber,
               }
             : null
+        );
+        setLiveOrders((prevList) =>
+          prevList.map((ord) =>
+            ord.id === selectedOrder.id
+              ? {
+                  ...ord,
+                  status: newStatus,
+                  displayStatus: targetDisplay,
+                  courierPartner: courierName || ord.courierPartner,
+                  trackingNumber: trackingNum || ord.trackingNumber,
+                }
+              : ord
+          )
         );
         router.refresh();
       }
@@ -489,7 +611,7 @@ export default function AdminCodOrdersClient({
       {/* Main White Card Container */}
       <div className="bg-white rounded-xl border border-slate-100 shadow-[0_2px_12px_rgba(0,0,0,0.03)] p-4 sm:p-5">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 pb-4 border-b border-slate-100">
-          <div className="relative w-full md:w-64">
+          <form onSubmit={handleSearchSubmit} className="relative w-full md:w-64">
             <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
               type="text"
@@ -498,7 +620,7 @@ export default function AdminCodOrdersClient({
               placeholder="Search COD orders..."
               className="w-full pl-9 pr-3 py-1.5 bg-slate-50/70 border border-slate-200/80 rounded-xl text-xs sm:text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
             />
-          </div>
+          </form>
 
           <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0">
             {(['All', 'Processing', 'Shipped', 'Pending', 'Cancelled'] as const).map((tab) => {
@@ -507,7 +629,7 @@ export default function AdminCodOrdersClient({
                 <button
                   key={tab}
                   type="button"
-                  onClick={() => setActiveTab(tab)}
+                  onClick={() => handleTabChange(tab)}
                   className={`text-xs font-semibold px-3 py-1 rounded-full transition-all shrink-0 ${
                     isActive
                       ? 'bg-[#2563EB] text-white shadow-xs'
@@ -585,6 +707,7 @@ export default function AdminCodOrdersClient({
                         {/* Eye / View details icon */}
                         <Link
                           href={order.isSampleData ? '#' : `/admin/orders/${order.id}`}
+                          prefetch={!order.isSampleData}
                           onClick={(e) => {
                             if (order.isSampleData) {
                               e.preventDefault();
@@ -620,6 +743,38 @@ export default function AdminCodOrdersClient({
             </tbody>
           </table>
         </div>
+
+        {/* Pagination Controls */}
+        {activePagination && activePagination.totalCount > 0 && (
+          <div className="pt-4 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs text-slate-500">
+            <div>
+              Showing <span className="font-semibold text-slate-800">{Math.min((activePagination.page - 1) * activePagination.pageSize + 1, activePagination.totalCount)}</span> to{' '}
+              <span className="font-semibold text-slate-800">{Math.min(activePagination.page * activePagination.pageSize, activePagination.totalCount)}</span> of{' '}
+              <span className="font-semibold text-slate-800">{activePagination.totalCount}</span> orders
+            </div>
+            <div className="flex items-center gap-1.5 self-end sm:self-auto">
+              <button
+                type="button"
+                disabled={activePagination.page <= 1 || isPendingAction}
+                onClick={() => handlePageChange(activePagination.page - 1)}
+                className="px-2.5 py-1 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed font-medium text-slate-700 transition-colors shadow-2xs"
+              >
+                Previous
+              </button>
+              <span className="px-2 font-medium text-slate-700">
+                Page {activePagination.page} of {Math.max(1, activePagination.totalPages)}
+              </span>
+              <button
+                type="button"
+                disabled={activePagination.page >= activePagination.totalPages || isPendingAction}
+                onClick={() => handlePageChange(activePagination.page + 1)}
+                className="px-2.5 py-1 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed font-medium text-slate-700 transition-colors shadow-2xs"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Slide-over Inspection Panel */}
@@ -643,6 +798,7 @@ export default function AdminCodOrdersClient({
                 {!selectedOrder.isSampleData && (
                   <Link
                     href={`/admin/orders/${selectedOrder.id}`}
+                    prefetch={true}
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-[#2563EB] text-xs font-semibold rounded-xl transition-colors"
                   >
                     <span>Full Details</span>
@@ -710,7 +866,26 @@ export default function AdminCodOrdersClient({
                   </div>
                 </div>
 
-                {selectedOrder.advancePaid === 0 && (
+                {selectedOrder.advancePaid > 0 ||
+                selectedOrder.activePayment?.status === 'verified' ||
+                selectedOrder.paymentStatus === 'advance_paid' ||
+                selectedOrder.paymentStatus === 'fully_paid' ? (
+                  <div className="pt-2 flex items-center justify-between p-3 bg-emerald-50 border border-emerald-200 rounded-xl">
+                    <div className="flex items-center gap-2 text-emerald-800 text-xs font-semibold">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                      <span>₹100 Advance Verified</span>
+                    </div>
+                    {!selectedOrder.isSampleData && (
+                      <Link
+                        href={`/admin/orders/${selectedOrder.id}`}
+                        prefetch={true}
+                        className="text-xs font-medium text-emerald-700 hover:text-emerald-900 underline flex items-center gap-1"
+                      >
+                        Order Details <ExternalLink className="w-3 h-3" />
+                      </Link>
+                    )}
+                  </div>
+                ) : (
                   <div className="pt-2 flex flex-col gap-2">
                     <button
                       type="button"

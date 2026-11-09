@@ -2,18 +2,43 @@ import React from 'react';
 import { requireAdmin } from '@/lib/auth/adminGuard';
 import { createAdminClient } from '@/lib/supabase/admin';
 import AdminCodOrdersClient from './AdminCodOrdersClient';
+import { AdminPaginationData } from '../online/AdminOnlineOrdersClient';
 
 export const metadata = {
   title: 'COD Orders | MajisaAdmin',
   description: 'Manage COD advance verifications and doorstep collections.',
 };
 
-export default async function AdminCodOrdersPage() {
-  await requireAdmin();
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
+interface SearchParams {
+  page?: string;
+  search?: string;
+  status?: string;
+}
+
+interface PageProps {
+  searchParams?: Promise<SearchParams>;
+}
+
+export default async function AdminCodOrdersPage({ searchParams }: PageProps) {
+  const [, resolvedParams] = await Promise.all([
+    requireAdmin(),
+    searchParams ? searchParams : Promise.resolve<SearchParams>({}),
+  ]);
   const adminClient = createAdminClient();
 
+  // Pagination parameters (25 items per page)
+  const page = Math.max(1, parseInt(resolvedParams.page || '1', 10));
+  const pageSize = 25;
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
+  const search = resolvedParams.search?.trim() || '';
+  const statusFilter = resolvedParams.status?.trim() || 'All';
+
   // Query actual live COD orders from Supabase using authoritative database columns
-  const { data: rawOrders, error } = await adminClient
+  let query = adminClient
     .from('orders')
     .select(`
       id,
@@ -32,7 +57,7 @@ export default async function AdminCodOrdersPage() {
       tracking_number,
       created_at,
       customer:profiles!orders_user_id_fkey ( id, full_name, email, phone ),
-      order_items ( id, product_name, quantity, unit_price, total_price ),
+      order_items ( quantity ),
       payments (
         id,
         attempt_number,
@@ -44,9 +69,29 @@ export default async function AdminCodOrdersPage() {
         proof_public_id,
         created_at
       )
-    `)
-    .eq('order_type', 'cod')
-    .order('created_at', { ascending: false });
+    `, { count: 'exact' })
+    .eq('order_type', 'cod');
+
+  if (statusFilter && statusFilter !== 'All') {
+    if (statusFilter === 'Shipped') {
+      query = query.in('status', ['Shipped', 'Dispatched']);
+    } else if (statusFilter === 'Processing') {
+      query = query.in('status', ['Processing', 'Confirmed']);
+    } else if (statusFilter === 'Pending') {
+      query = query.in('status', ['Pending Verification', 'Awaiting Payment', 'Payment Action Required']);
+    } else if (statusFilter === 'Cancelled') {
+      query = query.eq('status', 'Cancelled');
+    }
+  }
+
+  if (search) {
+    query = query.or(`order_number.ilike.%${search}%,customer_notes.ilike.%${search}%`);
+  }
+
+  const { data: rawOrders, count, error } = await query
+    .order('created_at', { ascending: false })
+    .order('id', { ascending: false }) // Stable tie-breaker sort
+    .range(from, to);
 
   if (error) {
     console.error('Error fetching COD orders:', {
@@ -56,6 +101,17 @@ export default async function AdminCodOrdersPage() {
       hint: error.hint,
     });
   }
+
+  const totalCount = count || 0;
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+  const pagination: AdminPaginationData = {
+    page,
+    pageSize,
+    totalCount,
+    totalPages,
+    statusFilter,
+    searchQuery: search,
+  };
 
   // Transform raw Supabase orders to Admin COD order interface
   const initialLiveOrders = (rawOrders || []).map((order: any) => {
@@ -141,5 +197,5 @@ export default async function AdminCodOrdersPage() {
     };
   });
 
-  return <AdminCodOrdersClient initialLiveOrders={initialLiveOrders} />;
+  return <AdminCodOrdersClient initialLiveOrders={initialLiveOrders} pagination={pagination} />;
 }

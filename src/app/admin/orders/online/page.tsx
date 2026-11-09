@@ -1,19 +1,43 @@
 import React from 'react';
 import { requireAdmin } from '@/lib/auth/adminGuard';
 import { createAdminClient } from '@/lib/supabase/admin';
-import AdminOnlineOrdersClient, { AdminOrderRow } from './AdminOnlineOrdersClient';
+import AdminOnlineOrdersClient, { AdminOrderRow, AdminPaginationData } from './AdminOnlineOrdersClient';
 
 export const metadata = {
   title: 'Online Orders | MajisaAdmin',
   description: 'Track and manage customer online orders and manual payment verifications.',
 };
 
-export default async function AdminOnlineOrdersPage() {
-  await requireAdmin();
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
+interface SearchParams {
+  page?: string;
+  search?: string;
+  status?: string;
+}
+
+interface PageProps {
+  searchParams?: Promise<SearchParams>;
+}
+
+export default async function AdminOnlineOrdersPage({ searchParams }: PageProps) {
+  const [, resolvedParams] = await Promise.all([
+    requireAdmin(),
+    searchParams ? searchParams : Promise.resolve<SearchParams>({}),
+  ]);
   const adminClient = createAdminClient();
 
-  // Query actual live online orders from Supabase with authoritative schema columns
-  const { data: rawOrders, error } = await adminClient
+  // Pagination parameters (25 items per page)
+  const page = Math.max(1, parseInt(resolvedParams.page || '1', 10));
+  const pageSize = 25;
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
+  const search = resolvedParams.search?.trim() || '';
+  const statusFilter = resolvedParams.status?.trim() || 'All';
+
+  // Build query with exact count & bounded range
+  let query = adminClient
     .from('orders')
     .select(`
       id,
@@ -32,7 +56,7 @@ export default async function AdminOnlineOrdersPage() {
       tracking_number,
       created_at,
       customer:profiles!orders_user_id_fkey ( id, full_name, email, phone ),
-      order_items ( id, product_name, quantity, unit_price, total_price ),
+      order_items ( quantity ),
       payments (
         id,
         attempt_number,
@@ -44,9 +68,29 @@ export default async function AdminOnlineOrdersPage() {
         proof_public_id,
         created_at
       )
-    `)
-    .eq('order_type', 'online')
-    .order('created_at', { ascending: false });
+    `, { count: 'exact' })
+    .eq('order_type', 'online');
+
+  if (statusFilter && statusFilter !== 'All') {
+    if (statusFilter === 'Shipped') {
+      query = query.in('status', ['Shipped', 'Dispatched']);
+    } else if (statusFilter === 'Processing') {
+      query = query.in('status', ['Processing', 'Confirmed']);
+    } else if (statusFilter === 'Pending') {
+      query = query.in('status', ['Pending Verification', 'Awaiting Payment', 'Payment Action Required']);
+    } else if (statusFilter === 'Cancelled') {
+      query = query.eq('status', 'Cancelled');
+    }
+  }
+
+  if (search) {
+    query = query.or(`order_number.ilike.%${search}%,customer_notes.ilike.%${search}%`);
+  }
+
+  const { data: rawOrders, count, error } = await query
+    .order('created_at', { ascending: false })
+    .order('id', { ascending: false }) // Stable tie-breaker sort
+    .range(from, to);
 
   if (error) {
     console.error('Error fetching Online orders:', {
@@ -56,6 +100,17 @@ export default async function AdminOnlineOrdersPage() {
       hint: error.hint,
     });
   }
+
+  const totalCount = count || 0;
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+  const pagination: AdminPaginationData = {
+    page,
+    pageSize,
+    totalCount,
+    totalPages,
+    statusFilter,
+    searchQuery: search,
+  };
 
   // Transform raw Supabase orders to AdminOrderRow interface
   const initialLiveOrders: AdminOrderRow[] = (rawOrders || []).map((order: any) => {
@@ -140,5 +195,5 @@ export default async function AdminOnlineOrdersPage() {
     };
   });
 
-  return <AdminOnlineOrdersClient initialLiveOrders={initialLiveOrders} />;
+  return <AdminOnlineOrdersClient initialLiveOrders={initialLiveOrders} pagination={pagination} />;
 }

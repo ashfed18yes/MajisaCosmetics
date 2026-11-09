@@ -17,51 +17,50 @@ export default async function AccountPage() {
     redirect('/sign-in?redirectTo=/account');
   }
 
-  // 1. Fetch customer profile from public.profiles
-  // RLS ensures the authenticated user can only access their own profile
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('id, full_name, email, phone, avatar_url, created_at')
-    .eq('id', user.id)
-    .maybeSingle();
-
-  // 2. Fetch customer addresses from public.addresses
-  // RLS ensures only addresses belonging to user_id = auth.uid() are returned
-  const { data: rawAddresses } = await supabase
-    .from('addresses')
-    .select('id, address_type, is_default, recipient_name, street_address, city, state, postal_code, phone, created_at')
-    .eq('user_id', user.id)
-    .order('is_default', { ascending: false })
-    .order('created_at', { ascending: false });
-
-  // 3. Fetch customer orders and order items from public.orders
-  // RLS ensures only orders belonging to user_id = auth.uid() are returned
-  const { data: rawOrders } = await supabase
-    .from('orders')
-    .select(`
-      id,
-      order_number,
-      status,
-      subtotal,
-      delivery_fee,
-      total_amount,
-      shipping_address_snapshot,
-      tracking_number,
-      courier_partner,
-      created_at,
-      order_items (
+  // Parallelize customer profile, saved addresses, and order history queries
+  const [
+    { data: profile },
+    { data: rawAddresses },
+    { data: rawOrders }
+  ] = await Promise.all([
+    supabase
+      .from('profiles')
+      .select('id, full_name, email, phone, avatar_url, created_at')
+      .eq('id', user.id)
+      .maybeSingle(),
+    supabase
+      .from('addresses')
+      .select('id, address_type, is_default, recipient_name, street_address, city, state, postal_code, phone, created_at')
+      .eq('user_id', user.id)
+      .order('is_default', { ascending: false })
+      .order('created_at', { ascending: false }),
+    supabase
+      .from('orders')
+      .select(`
         id,
-        product_name,
-        brand_name,
-        variant_name,
-        unit_price,
-        quantity,
-        total_price,
-        image_url
-      )
-    `)
-    .eq('user_id', user.id)
-    .order('created_at', { ascending: false });
+        order_number,
+        status,
+        subtotal,
+        delivery_fee,
+        total_amount,
+        shipping_address_snapshot,
+        tracking_number,
+        courier_partner,
+        created_at,
+        order_items (
+          id,
+          product_name,
+          brand_name,
+          variant_name,
+          unit_price,
+          quantity,
+          total_price,
+          image_url
+        )
+      `)
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false }),
+  ]);
 
   const fullName =
     profile?.full_name ||
