@@ -445,6 +445,7 @@ export default function AdminOnlineOrdersClient({
 
       const res = await verifyPaymentAction({
         paymentId: selectedOrder.activePayment!.id,
+        orderId: selectedOrder.id,
         confirmedAmountReceived: selectedOrder.total,
       });
 
@@ -517,6 +518,7 @@ export default function AdminOnlineOrdersClient({
 
       const res = await rejectPaymentAction({
         paymentId: selectedOrder.activePayment!.id,
+        orderId: selectedOrder.id,
         rejectionReason: rejectionReason.trim(),
       });
 
@@ -1050,11 +1052,11 @@ export default function AdminOnlineOrdersClient({
                         <span>Payment Rejected (Awaiting Customer Resubmission)</span>
                       </div>
                     </div>
-                  ) : (!selectedOrder.activePayment?.utrReference?.trim() && !selectedOrder.activePayment?.proofSecurePath?.trim()) ? (
+                  ) : (!selectedOrder.activePayment?.utrReference?.trim() || !selectedOrder.activePayment?.proofSecurePath?.trim()) ? (
                     <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between text-xs text-slate-700">
                       <div className="flex items-center gap-2 font-medium">
                         <Clock className="w-4 h-4 text-slate-400 shrink-0" />
-                        <span>Awaiting Payment Submission (No UTR or proof attached)</span>
+                        <span>Awaiting Complete Payment Submission (Both UTR &amp; proof screenshot required)</span>
                       </div>
                     </div>
                   ) : (

@@ -190,6 +190,7 @@ export default function OrderDetailsClient({ initialOrder }: OrderDetailsClientP
 
       const res = await verifyPaymentAction({
         paymentId,
+        orderId: order.id,
         confirmedAmountReceived: expectedAmount,
       });
 
@@ -234,6 +235,7 @@ export default function OrderDetailsClient({ initialOrder }: OrderDetailsClientP
 
       const res = await rejectPaymentAction({
         paymentId: rejectingPaymentId,
+        orderId: order.id,
         rejectionReason: rejectionReasonInput.trim(),
       });
 
@@ -730,10 +732,10 @@ export default function OrderDetailsClient({ initialOrder }: OrderDetailsClientP
                         {/* Action buttons if attempt is pending verification */}
                         {isPendingAttempt && (
                           <div className="flex items-center gap-2">
-                            {(!p.utrReference?.trim() && !p.proofPublicId?.trim()) ? (
-                              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold bg-slate-100 text-slate-600 border border-slate-200" title="Customer has not submitted payment proof or UTR yet">
+                            {(!p.utrReference?.trim() || !p.proofPublicId?.trim()) ? (
+                              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold bg-slate-100 text-slate-600 border border-slate-200" title="Both UTR and payment proof screenshot are mandatory before verification">
                                 <Clock className="w-3.5 h-3.5 text-slate-500" />
-                                <span>Awaiting Payment Submission</span>
+                                <span>Awaiting Complete Submission (UTR &amp; Proof Required)</span>
                               </span>
                             ) : (
                               <>

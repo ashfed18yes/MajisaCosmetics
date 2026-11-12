@@ -300,6 +300,7 @@ export default function AdminCodOrdersClient({
 
       const res = await verifyPaymentAction({
         paymentId: selectedOrder.activePayment!.id,
+        orderId: selectedOrder.id,
         confirmedAmountReceived: 100, // Fixed ₹100 advance
       });
 
@@ -414,6 +415,7 @@ export default function AdminCodOrdersClient({
 
       const res = await rejectPaymentAction({
         paymentId: selectedOrder.activePayment!.id,
+        orderId: selectedOrder.id,
         rejectionReason: rejectionReason.trim(),
       });
 
@@ -892,10 +894,10 @@ export default function AdminCodOrdersClient({
                     <XCircle className="w-4 h-4 text-rose-600 shrink-0" />
                     <span>Advance Payment Rejected (Awaiting Customer Resubmission)</span>
                   </div>
-                ) : (!selectedOrder.activePayment?.utrReference?.trim() && !selectedOrder.activePayment?.proofSecurePath?.trim()) ? (
+                ) : (!selectedOrder.activePayment?.utrReference?.trim() || !selectedOrder.activePayment?.proofSecurePath?.trim()) ? (
                   <div className="pt-2 p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-700 flex items-center gap-2">
                     <Clock className="w-4 h-4 text-slate-400 shrink-0" />
-                    <span>Awaiting Advance Submission (No UTR or proof attached)</span>
+                    <span>Awaiting Complete Advance Submission (Both UTR &amp; proof screenshot required)</span>
                   </div>
                 ) : (
                   <div className="pt-2 flex flex-col gap-2">

@@ -12,12 +12,14 @@ function isValidUuid(id: string): boolean {
 
 export interface VerifyPaymentInput {
   paymentId: string;
+  orderId?: string;
   confirmedAmountReceived: number;
   adminNotes?: string | null;
 }
 
 export interface RejectPaymentInput {
   paymentId: string;
+  orderId?: string;
   rejectionReason: string;
   adminNotes?: string | null;
 }
@@ -79,6 +81,14 @@ export async function verifyPaymentAction(input: VerifyPaymentInput) {
       return { success: false, error: 'Payment attempt record not found.' };
     }
 
+    // Security verification: If caller provided orderId, verify payment belongs to this order
+    if (input.orderId && paymentRecord.order_id !== input.orderId) {
+      return {
+        success: false,
+        error: 'Security mismatch: Payment attempt does not belong to the specified order.',
+      };
+    }
+
     // Case 3 — Already verified: return immediately without calling RPC unnecessarily
     if (paymentRecord.verification_status === 'verified') {
       const orderId = paymentRecord.order_id;
@@ -110,12 +120,52 @@ export async function verifyPaymentAction(input: VerifyPaymentInput) {
       };
     }
 
-    // Case 1 — Awaiting submission: Cannot verify if neither UTR nor proof screenshot was submitted
-    if (!paymentRecord.utr_reference?.trim() && !paymentRecord.proof_public_id?.trim()) {
+    // Case 1 — Mandatory Payment Proof & UTR Validation:
+    // Both UTR reference number and payment screenshot proof are strictly required.
+    const utr = paymentRecord.utr_reference?.trim();
+    const proofId = paymentRecord.proof_public_id?.trim();
+
+    if (!utr || !proofId) {
       return {
         success: false,
-        error: 'Cannot verify payment: The customer has not submitted a UTR reference number or payment screenshot yet (Awaiting Payment Submission).',
+        error: 'Cannot verify payment: Both a valid UTR reference number and an uploaded payment screenshot proof are strictly mandatory before verification.',
       };
+    }
+
+    if (utr.length < 8 || utr.length > 22) {
+      return {
+        success: false,
+        error: 'Cannot verify payment: Invalid UTR reference format (must be 8-22 alphanumeric characters).',
+      };
+    }
+
+    // Asset namespace security verification:
+    // Strictly verify proof belongs to the exact payment attempt and order via regex (not just loose prefix)
+    const exactProofRegex = new RegExp(`^majisa-cosmetics/payment-proofs/${paymentRecord.order_id}/${paymentRecord.id}_\\d+$`);
+    const sampleProofRegex = /^majisa-cosmetics\/payment-proofs\/sample\/[a-zA-Z0-9_-]+$/;
+
+    if (!exactProofRegex.test(proofId) && !sampleProofRegex.test(proofId)) {
+      return {
+        success: false,
+        error: `Security violation: Payment proof asset (${proofId}) is not structurally bound to order ${paymentRecord.order_id} and payment attempt ${paymentRecord.id}.`,
+      };
+    }
+
+    // Proof reuse prevention: Ensure rejected and retry payment attempts cannot reuse another attempt's proof
+    if (!sampleProofRegex.test(proofId)) {
+      const { data: reusedProof } = await adminClient
+        .from('payments')
+        .select('id, order_id, attempt_number, verification_status')
+        .eq('proof_public_id', proofId)
+        .neq('id', paymentRecord.id)
+        .maybeSingle();
+
+      if (reusedProof) {
+        return {
+          success: false,
+          error: `Security violation: Payment proof screenshot has already been used in payment attempt #${reusedProof.attempt_number} (status: ${reusedProof.verification_status}). Reusing proof screenshots across attempts is strictly prohibited.`,
+        };
+      }
     }
 
     // 2. Execute verification RPC via authenticated user context
@@ -212,12 +262,19 @@ export async function rejectPaymentAction(input: RejectPaymentInput) {
     // Authoritative pre-check
     const { data: paymentRecord, error: paymentFetchErr } = await adminClient
       .from('payments')
-      .select('id, verification_status')
+      .select('id, order_id, verification_status')
       .eq('id', input.paymentId)
       .maybeSingle();
 
     if (paymentFetchErr || !paymentRecord) {
       return { success: false, error: 'Payment attempt record not found.' };
+    }
+
+    if (input.orderId && paymentRecord.order_id !== input.orderId) {
+      return {
+        success: false,
+        error: 'Security mismatch: Payment attempt does not belong to the specified order.',
+      };
     }
 
     if (paymentRecord.verification_status === 'verified') {
