@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect, useTransition } from 'react';
@@ -471,6 +472,13 @@ export default function OrderDetailsClient({ initialOrder }: OrderDetailsClientP
 
             {/* Lifecycle Transition Buttons */}
             <div className="flex flex-wrap items-center gap-2.5">
+              {['Pending Verification', 'Awaiting Payment', 'Payment Action Required'].includes(order.status) && (
+                <div className="flex items-center gap-2 text-amber-800 text-xs font-semibold bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-lg">
+                  <Clock className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                  <span>Fulfillment Locked: Payment must be verified before processing or dispatching.</span>
+                </div>
+              )}
+
               {order.status === 'Confirmed' && (
                 <button
                   type="button"
@@ -502,9 +510,23 @@ export default function OrderDetailsClient({ initialOrder }: OrderDetailsClientP
                   disabled={isPending}
                   className="px-3.5 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-semibold transition-colors shadow-xs flex items-center gap-1.5 disabled:opacity-50"
                 >
-                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  {isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
                   <span>Mark Order as Delivered</span>
                 </button>
+              )}
+
+              {order.status === 'Delivered' && (
+                <div className="flex items-center gap-2 text-emerald-800 text-xs font-semibold bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-lg">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                  <span>Order Successfully Delivered & Completed</span>
+                </div>
+              )}
+
+              {order.status === 'Cancelled' && (
+                <div className="flex items-center gap-2 text-rose-800 text-xs font-semibold bg-rose-50 border border-rose-200 px-3 py-1.5 rounded-lg">
+                  <X className="w-3.5 h-3.5 text-rose-600 shrink-0" />
+                  <span>Order Cancelled</span>
+                </div>
               )}
 
               {/* Courier and tracking details if dispatched */}
@@ -708,26 +730,35 @@ export default function OrderDetailsClient({ initialOrder }: OrderDetailsClientP
                         {/* Action buttons if attempt is pending verification */}
                         {isPendingAttempt && (
                           <div className="flex items-center gap-2">
-                            <button
-                              type="button"
-                              onClick={() => handleVerifyPayment(p.id, p.amountExpected)}
-                              disabled={isPending || p.verificationStatus !== 'pending'}
-                              className="px-3 py-1 bg-[#2563EB] hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded-lg font-semibold text-xs transition-colors shadow-xs flex items-center gap-1"
-                            >
-                              {isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
-                              <span>Verify & Confirm (₹{p.amountExpected.toFixed(2)})</span>
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setRejectingPaymentId(p.id);
-                                setRejectionReasonInput('');
-                              }}
-                              disabled={isPending || p.verificationStatus !== 'pending'}
-                              className="px-2.5 py-1 text-rose-600 hover:bg-rose-50 border border-rose-200 rounded-lg font-medium text-xs transition-colors"
-                            >
-                              Reject
-                            </button>
+                            {(!p.utrReference?.trim() && !p.proofPublicId?.trim()) ? (
+                              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold bg-slate-100 text-slate-600 border border-slate-200" title="Customer has not submitted payment proof or UTR yet">
+                                <Clock className="w-3.5 h-3.5 text-slate-500" />
+                                <span>Awaiting Payment Submission</span>
+                              </span>
+                            ) : (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => handleVerifyPayment(p.id, p.amountExpected)}
+                                  disabled={isPending || p.verificationStatus !== 'pending'}
+                                  className="px-3 py-1 bg-[#2563EB] hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded-lg font-semibold text-xs transition-colors shadow-xs flex items-center gap-1"
+                                >
+                                  {isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
+                                  <span>Verify & Confirm (₹{p.amountExpected.toFixed(2)})</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setRejectingPaymentId(p.id);
+                                    setRejectionReasonInput('');
+                                  }}
+                                  disabled={isPending || p.verificationStatus !== 'pending'}
+                                  className="px-2.5 py-1 text-rose-600 hover:bg-rose-50 border border-rose-200 rounded-lg font-medium text-xs transition-colors"
+                                >
+                                  Reject
+                                </button>
+                              </>
+                            )}
                           </div>
                         )}
                       </div>

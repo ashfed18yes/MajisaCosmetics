@@ -11,6 +11,8 @@ import {
   Download,
   CheckCircle2,
   XCircle,
+  Clock,
+  Package,
   Truck,
   AlertCircle,
   ExternalLink,
@@ -873,7 +875,7 @@ export default function AdminCodOrdersClient({
                   <div className="pt-2 flex items-center justify-between p-3 bg-emerald-50 border border-emerald-200 rounded-xl">
                     <div className="flex items-center gap-2 text-emerald-800 text-xs font-semibold">
                       <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                      <span>₹100 Advance Verified</span>
+                      <span>₹100 Advance Verified & Confirmed</span>
                     </div>
                     {!selectedOrder.isSampleData && (
                       <Link
@@ -884,6 +886,16 @@ export default function AdminCodOrdersClient({
                         Order Details <ExternalLink className="w-3 h-3" />
                       </Link>
                     )}
+                  </div>
+                ) : selectedOrder.activePayment?.status === 'rejected' ? (
+                  <div className="pt-2 p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-800 flex items-center gap-2">
+                    <XCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                    <span>Advance Payment Rejected (Awaiting Customer Resubmission)</span>
+                  </div>
+                ) : (!selectedOrder.activePayment?.utrReference?.trim() && !selectedOrder.activePayment?.proofSecurePath?.trim()) ? (
+                  <div className="pt-2 p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-700 flex items-center gap-2">
+                    <Clock className="w-4 h-4 text-slate-400 shrink-0" />
+                    <span>Awaiting Advance Submission (No UTR or proof attached)</span>
                   </div>
                 ) : (
                   <div className="pt-2 flex flex-col gap-2">
@@ -951,7 +963,15 @@ export default function AdminCodOrdersClient({
                   Collect this balance amount in cash at the time of physical delivery to the customer.
                 </p>
 
-                {selectedOrder.balanceDue > 0 ? (
+                {selectedOrder.balanceDue <= 0 ? (
+                  <div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded-xl text-center text-xs font-semibold text-emerald-800">
+                    Balance Fully Collected & Settled
+                  </div>
+                ) : !['Dispatched', 'Delivered'].includes(selectedOrder.status) ? (
+                  <div className="p-2.5 bg-slate-100 border border-slate-200 rounded-xl text-center text-xs text-slate-500">
+                    Doorstep collection unlocks once order is Dispatched.
+                  </div>
+                ) : (
                   <button
                     type="button"
                     onClick={handleConfirmBalanceCollected}
@@ -961,10 +981,6 @@ export default function AdminCodOrdersClient({
                     <CheckCircle2 className="w-4 h-4" />
                     <span>Confirm Doorstep Cash Collected (₹{selectedOrder.balanceDue.toFixed(2)})</span>
                   </button>
-                ) : (
-                  <div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded-xl text-center text-xs font-semibold text-emerald-800">
-                    Balance Fully Collected & Settled
-                  </div>
                 )}
               </div>
 
@@ -975,52 +991,89 @@ export default function AdminCodOrdersClient({
                   <span>Fulfillment & Dispatch</span>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <div>
-                    <label className="text-slate-500 block mb-1">Courier Partner</label>
-                    <input
-                      type="text"
-                      value={courierName}
-                      onChange={(e) => setCourierName(e.target.value)}
-                      placeholder="e.g. Delhivery"
-                      className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs"
-                    />
+                {['Pending Verification', 'Awaiting Payment', 'Payment Action Required'].includes(selectedOrder.status) ? (
+                  <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-xl text-center text-xs font-semibold text-amber-800">
+                    Fulfillment Locked: ₹100 Advance must be verified before processing or dispatching.
                   </div>
-                  <div>
-                    <label className="text-slate-500 block mb-1">Tracking Number</label>
-                    <input
-                      type="text"
-                      value={trackingNum}
-                      onChange={(e) => setTrackingNum(e.target.value)}
-                      placeholder="e.g. DEL-99238"
-                      className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-mono"
-                    />
+                ) : selectedOrder.status === 'Confirmed' ? (
+                  <div className="space-y-2">
+                    <p className="text-xs text-slate-600">
+                      ₹100 advance verified. Start preparing the parcel for packaging and dispatch.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => handleUpdateFulfillment('Processing')}
+                      disabled={isPendingAction}
+                      className="w-full py-2 bg-[#2563EB] hover:bg-blue-700 text-white rounded-xl text-xs font-semibold transition-colors shadow-xs flex items-center justify-center gap-1.5"
+                    >
+                      {isPendingAction ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Package className="w-3.5 h-3.5" />}
+                      <span>Start Processing Order</span>
+                    </button>
                   </div>
-                </div>
-
-                <div className="grid grid-cols-3 gap-2 pt-2">
-                  <button
-                    type="button"
-                    onClick={() => handleUpdateFulfillment('Processing')}
-                    className="px-2 py-1.5 bg-blue-100 hover:bg-blue-200 text-blue-800 rounded-lg text-[11px] font-semibold"
-                  >
-                    Processing
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleUpdateFulfillment('Dispatched')}
-                    className="px-2 py-1.5 bg-emerald-100 hover:bg-emerald-200 text-emerald-800 rounded-lg text-[11px] font-semibold"
-                  >
-                    Mark Shipped
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleUpdateFulfillment('Delivered')}
-                    className="px-2 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-800 rounded-lg text-[11px] font-semibold"
-                  >
-                    Mark Delivered
-                  </button>
-                </div>
+                ) : selectedOrder.status === 'Processing' ? (
+                  <div className="space-y-3">
+                    <p className="text-xs text-slate-600">
+                      Order in processing. Enter courier partner and tracking/AWB number to dispatch.
+                    </p>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div>
+                        <label className="text-slate-500 block mb-1">Courier Partner *</label>
+                        <input
+                          type="text"
+                          value={courierName}
+                          onChange={(e) => setCourierName(e.target.value)}
+                          placeholder="e.g. Delhivery"
+                          className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-slate-500 block mb-1">Tracking Number *</label>
+                        <input
+                          type="text"
+                          value={trackingNum}
+                          onChange={(e) => setTrackingNum(e.target.value)}
+                          placeholder="e.g. DEL-99238"
+                          className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-mono"
+                        />
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleUpdateFulfillment('Dispatched')}
+                      disabled={isPendingAction}
+                      className="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold transition-colors shadow-xs flex items-center justify-center gap-1.5"
+                    >
+                      {isPendingAction ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Truck className="w-3.5 h-3.5" />}
+                      <span>Dispatch & Mark Shipped</span>
+                    </button>
+                  </div>
+                ) : selectedOrder.status === 'Dispatched' ? (
+                  <div className="space-y-3">
+                    <div className="p-2.5 bg-emerald-50/70 border border-emerald-200 rounded-lg text-xs text-emerald-900 flex justify-between items-center">
+                      <span className="font-semibold">{selectedOrder.courierPartner || courierName || 'Courier Assigned'}</span>
+                      <span className="font-mono text-slate-600">#{selectedOrder.trackingNumber || trackingNum}</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleUpdateFulfillment('Delivered')}
+                      disabled={isPendingAction}
+                      className="w-full py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-semibold transition-colors shadow-xs flex items-center justify-center gap-1.5"
+                    >
+                      {isPendingAction ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
+                      <span>Mark Order as Delivered</span>
+                    </button>
+                  </div>
+                ) : selectedOrder.status === 'Delivered' ? (
+                  <div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded-xl text-center text-xs font-semibold text-emerald-800 flex items-center justify-center gap-1.5">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                    <span>Order Successfully Delivered</span>
+                  </div>
+                ) : selectedOrder.status === 'Cancelled' ? (
+                  <div className="p-2.5 bg-rose-50 border border-rose-200 rounded-xl text-center text-xs font-semibold text-rose-800 flex items-center justify-center gap-1.5">
+                    <XCircle className="w-4 h-4 text-rose-600" />
+                    <span>Order Cancelled</span>
+                  </div>
+                ) : null}
               </div>
             </div>
           </div>
