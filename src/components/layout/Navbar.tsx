@@ -36,28 +36,12 @@ export default function Navbar() {
     try {
       const supabase = createClient();
 
-      supabase.auth.getUser().then(({ data }) => {
-        setCurrentUser(data.user);
+      // Read locally stored session immediately without blocking on a network round-trip
+      supabase.auth.getSession().then(({ data }) => {
+        if (data?.session?.user) {
+          setCurrentUser(data.session.user);
+        }
       });
-
-      // Fetch live categories from Supabase
-      supabase
-        .from('categories')
-        .select('id, name, slug')
-        .eq('is_active', true)
-        .order('display_order', { ascending: true })
-        .then(({ data }) => {
-          if (data && data.length > 0) {
-            const liveCats = data.map((c: any) => ({
-              id: c.id,
-              name: c.name,
-              slug: c.slug,
-            }));
-            const liveSlugs = new Set(liveCats.map((c) => c.slug));
-            const mockNonConflicting = CATEGORIES.filter((m) => !liveSlugs.has(m.slug));
-            setCategories([...liveCats, ...mockNonConflicting]);
-          }
-        });
 
       const {
         data: { subscription },
@@ -207,16 +191,16 @@ export default function Navbar() {
               <Search className="w-4 h-4 stroke-[2.2]" />
             </button>
 
-            {/* Account Icon */}
+            {/* Account Icon: Direct link to /account eliminates hydration race conditions */}
             <Link
-              href={currentUser ? '/account' : '/sign-in'}
+              href="/account"
               className={`relative w-8.5 h-8.5 sm:w-9 sm:h-9 flex items-center justify-center rounded-full transition-colors border ${
                 currentUser
                   ? 'bg-[#DDF3F2] text-[#0B4145] border-[#128F92]/40 shadow-xs'
                   : 'bg-[#F0F9F8] text-[#0B4145] hover:text-[#128F92] hover:bg-[#DDF3F2] border-[#DDF3F2]/60'
               }`}
-              aria-label={currentUser ? 'My Account' : 'Member Sign In'}
-              title={currentUser ? `Signed in as ${currentUser.email}` : 'Sign In'}
+              aria-label={currentUser ? 'My Account' : 'Member Access / Sign In'}
+              title={currentUser ? `Signed in as ${currentUser.email}` : 'My Account / Sign In'}
             >
               {currentUser ? (
                 <span className="font-serif font-bold text-xs sm:text-sm text-[#0B4145]">
@@ -344,7 +328,7 @@ export default function Navbar() {
                   Contact Concierge
                 </Link>
                 <Link
-                  href={currentUser ? '/account' : '/sign-in'}
+                  href="/account"
                   onClick={() => setIsMobileMenuOpen(false)}
                   className="w-full py-3.5 px-4 rounded-full bg-[#F0F9F8] border border-[#DDF3F2] text-[#0B4145] text-center block text-sm font-bold flex items-center justify-center gap-2"
                 >

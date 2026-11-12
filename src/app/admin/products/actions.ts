@@ -398,6 +398,9 @@ export async function toggleProductAvailabilityAction(productId: string, isAvail
   }
 
   revalidatePath('/admin/products');
+  revalidatePath('/collections');
+  revalidatePath('/brands');
+  revalidatePath('/');
   return { success: true };
 }
 
@@ -434,6 +437,9 @@ export async function deleteProductAction(productId: string) {
   }
 
   revalidatePath('/admin/products');
+  revalidatePath('/collections');
+  revalidatePath('/brands');
+  revalidatePath('/');
   return { success: true };
 }
 

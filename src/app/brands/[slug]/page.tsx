@@ -14,8 +14,12 @@ interface BrandPageProps {
   params: Promise<{ slug: string }>;
 }
 
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
+export const revalidate = 60;
+
+export async function generateStaticParams() {
+  const brands = await getStorefrontBrands();
+  return brands.map((b) => ({ slug: b.slug }));
+}
 
 export async function generateMetadata({ params }: BrandPageProps) {
   const { slug } = await params;

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useTransition } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -94,6 +94,7 @@ export default function AccountClient({
   initialOrders,
 }: AccountClientProps) {
   const router = useRouter();
+  const [, startTransition] = useTransition();
   const [activeTab, setActiveTab] = useState<'profile' | 'orders' | 'addresses'>('orders');
   const [addresses, setAddresses] = useState<CustomerAddress[]>(initialAddresses);
   const [orders] = useState<CustomerOrder[]>(initialOrders);
@@ -188,7 +189,9 @@ export default function AccountClient({
 
       setCurrentFullName(combinedName);
       setProfileSuccess('Your personal profile has been updated successfully.');
-      router.refresh();
+      startTransition(() => {
+        router.refresh();
+      });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to update profile details.';
       setProfileError(message);
@@ -268,7 +271,9 @@ export default function AccountClient({
         phone: customer.phone || '',
         type: 'Home',
       });
-      router.refresh();
+      startTransition(() => {
+        router.refresh();
+      });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to save address.';
       setAddressError(message);
@@ -285,7 +290,9 @@ export default function AccountClient({
       const { error: deleteError } = await supabase.from('addresses').delete().eq('id', id);
       if (deleteError) throw deleteError;
       setAddresses((prev) => prev.filter((addr) => addr.id !== id));
-      router.refresh();
+      startTransition(() => {
+        router.refresh();
+      });
     } catch (err) {
       console.error('Delete address error:', err);
     } finally {

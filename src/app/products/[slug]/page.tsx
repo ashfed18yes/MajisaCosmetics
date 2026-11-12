@@ -1,14 +1,22 @@
 import React from 'react';
 import { notFound } from 'next/navigation';
-import { getStorefrontProductBySlug, getStorefrontRelatedProducts } from '@/lib/products';
+import {
+  getStorefrontProductBySlug,
+  getStorefrontRelatedProducts,
+  getStorefrontProducts,
+} from '@/lib/products';
 import ProductDetailClient from './ProductDetailClient';
 
 interface ProductPageProps {
   params: Promise<{ slug: string }>;
 }
 
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
+export const revalidate = 60;
+
+export async function generateStaticParams() {
+  const products = await getStorefrontProducts();
+  return products.map((p) => ({ slug: p.slug }));
+}
 
 export async function generateMetadata({ params }: ProductPageProps) {
   const { slug } = await params;

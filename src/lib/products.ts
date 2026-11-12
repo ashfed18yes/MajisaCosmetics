@@ -1,5 +1,5 @@
 import { cache } from 'react';
-import { createClient } from '@/lib/supabase/server';
+import { createPublicClient } from '@/lib/supabase/public';
 import { Product, Category, Brand, ProductVariant, ProductSize } from '@/types';
 import {
   CATEGORIES as MOCK_CATEGORIES,
@@ -112,7 +112,7 @@ function mapSupabaseBrand(b: any): Brand {
  */
 export const getStorefrontProducts = cache(async (): Promise<Product[]> => {
   try {
-    const supabase = await createClient();
+    const supabase = createPublicClient();
     const { data: rawProducts, error } = await supabase
       .from('products')
       .select(`
@@ -146,7 +146,7 @@ export const getStorefrontProductBySlug = cache(async (slug: string): Promise<Pr
   if (!slug) return null;
 
   try {
-    const supabase = await createClient();
+    const supabase = createPublicClient();
     const { data: rawProduct, error } = await supabase
       .from('products')
       .select(`
@@ -173,10 +173,11 @@ export const getStorefrontProductBySlug = cache(async (slug: string): Promise<Pr
 
 /**
  * Fetches all categories from Supabase merged with mock categories.
+ * Memoized per-request with React cache().
  */
-export async function getStorefrontCategories(): Promise<Category[]> {
+export const getStorefrontCategories = cache(async (): Promise<Category[]> => {
   try {
-    const supabase = await createClient();
+    const supabase = createPublicClient();
     const { data: rawCats, error } = await supabase
       .from('categories')
       .select('*')
@@ -196,16 +197,17 @@ export async function getStorefrontCategories(): Promise<Category[]> {
     console.error('Error in getStorefrontCategories:', err);
     return MOCK_CATEGORIES;
   }
-}
+});
 
 /**
  * Retrieves a category by slug from Supabase or fallback.
+ * Memoized per-request with React cache().
  */
-export async function getStorefrontCategoryBySlug(slug: string): Promise<Category | null> {
+export const getStorefrontCategoryBySlug = cache(async (slug: string): Promise<Category | null> => {
   if (!slug) return null;
 
   try {
-    const supabase = await createClient();
+    const supabase = createPublicClient();
     const { data: rawCat, error } = await supabase
       .from('categories')
       .select('*')
@@ -224,14 +226,15 @@ export async function getStorefrontCategoryBySlug(slug: string): Promise<Categor
     const mockMatch = MOCK_CATEGORIES.find((c) => c.slug === slug);
     return mockMatch || null;
   }
-}
+});
 
 /**
  * Fetches all brands from Supabase merged with mock brands.
+ * Memoized per-request with React cache().
  */
-export async function getStorefrontBrands(): Promise<Brand[]> {
+export const getStorefrontBrands = cache(async (): Promise<Brand[]> => {
   try {
-    const supabase = await createClient();
+    const supabase = createPublicClient();
     const { data: rawBrands, error } = await supabase
       .from('brands')
       .select('*')
@@ -251,16 +254,17 @@ export async function getStorefrontBrands(): Promise<Brand[]> {
     console.error('Error in getStorefrontBrands:', err);
     return MOCK_BRANDS;
   }
-}
+});
 
 /**
  * Retrieves a brand by slug from Supabase or fallback.
+ * Memoized per-request with React cache().
  */
-export async function getStorefrontBrandBySlug(slug: string): Promise<Brand | null> {
+export const getStorefrontBrandBySlug = cache(async (slug: string): Promise<Brand | null> => {
   if (!slug) return null;
 
   try {
-    const supabase = await createClient();
+    const supabase = createPublicClient();
     const { data: rawBrand, error } = await supabase
       .from('brands')
       .select('*')
@@ -279,7 +283,7 @@ export async function getStorefrontBrandBySlug(slug: string): Promise<Brand | nu
     const mockMatch = MOCK_BRANDS.find((b) => b.slug === slug);
     return mockMatch || null;
   }
-}
+});
 
 /**
  * Retrieves products filtered by category slug.

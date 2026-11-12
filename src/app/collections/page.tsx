@@ -6,8 +6,7 @@ import {
 } from '@/lib/products';
 import CollectionsClient from './CollectionsClient';
 
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
+export const revalidate = 60;
 
 export const metadata = {
   title: 'The Beauty Collections | Majisa Cosmetics',

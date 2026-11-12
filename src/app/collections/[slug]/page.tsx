@@ -14,8 +14,12 @@ interface CategoryPageProps {
   params: Promise<{ slug: string }>;
 }
 
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
+export const revalidate = 60;
+
+export async function generateStaticParams() {
+  const categories = await getStorefrontCategories();
+  return categories.map((c) => ({ slug: c.slug }));
+}
 
 export async function generateMetadata({ params }: CategoryPageProps) {
   const { slug } = await params;
