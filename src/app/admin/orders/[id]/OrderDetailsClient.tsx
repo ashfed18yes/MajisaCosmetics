@@ -28,6 +28,7 @@ import {
   Eye,
   X,
   ImageIcon,
+  Trash2,
 } from 'lucide-react';
 import {
   verifyPaymentAction,
@@ -35,6 +36,7 @@ import {
   confirmCodCollectionAction,
   updateFulfillmentStatusAction,
   getSignedProofUrlAction,
+  deleteOrderAction,
 } from '../actions';
 
 export interface OrderDetailsData {
@@ -152,6 +154,10 @@ export default function OrderDetailsClient({ initialOrder }: OrderDetailsClientP
   const [showCodCollectionModal, setShowCodCollectionModal] = useState(false);
   const [collectionMethodInput, setCollectionMethodInput] = useState<'cash' | 'upi_doorstep' | 'card_doorstep'>('cash');
   const [collectionNotesInput, setCollectionNotesInput] = useState('');
+
+  // Delete Order modal state
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Helper to open short-lived signed proof URL
   const handleOpenProof = async (proofPublicId: string | null) => {
@@ -331,6 +337,25 @@ export default function OrderDetailsClient({ initialOrder }: OrderDetailsClientP
     });
   };
 
+  // Delete Order Handler
+  const handleDeleteOrder = () => {
+    setIsDeleting(true);
+    setActionError(null);
+    startTransition(async () => {
+      const res = await deleteOrderAction({ orderId: order.id });
+      if (!res.success) {
+        setActionError(res.error || 'Failed to delete order.');
+        setIsDeleting(false);
+        setShowDeleteModal(false);
+      } else {
+        setActionSuccess(`Order #${order.orderNumber} deleted successfully.`);
+        setTimeout(() => {
+          router.push(order.orderType === 'cod' ? '/admin/orders/cod' : '/admin/orders/online');
+        }, 800);
+      }
+    });
+  };
+
   // Status badge styling helper
   const renderStatusBadge = (status: string) => {
     const s = status.toLowerCase();
@@ -426,11 +451,21 @@ export default function OrderDetailsClient({ initialOrder }: OrderDetailsClientP
           </div>
         </div>
 
-        {/* Action feedback notifications */}
+        {/* Action feedback notifications & Delete Order */}
         <div className="flex items-center gap-3">
-          <span className="text-[11px] text-slate-400">
+          <span className="text-[11px] text-slate-400 hidden sm:inline">
             Placed on {order.createdAt ? new Date(order.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : 'N/A'}
           </span>
+          <button
+            type="button"
+            onClick={() => setShowDeleteModal(true)}
+            disabled={isPending || isDeleting}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100/80 border border-rose-200/80 rounded-lg transition-colors cursor-pointer disabled:opacity-50 shadow-xs"
+            title="Permanently delete this order from database"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            <span>Delete Order</span>
+          </button>
         </div>
       </div>
 
@@ -1188,6 +1223,65 @@ export default function OrderDetailsClient({ initialOrder }: OrderDetailsClientP
                 <span>Open in full resolution</span>
                 <ExternalLink className="w-3 h-3" />
               </a>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Delete Order Confirmation */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-slate-100 overflow-hidden">
+            <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-rose-50/50">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-rose-100 text-rose-600 flex items-center justify-center shrink-0">
+                  <Trash2 className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900">Delete Order Permanently</h3>
+                  <p className="text-[11px] text-slate-500">Order #{order.orderNumber}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowDeleteModal(false)}
+                disabled={isDeleting}
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-3">
+              <p className="text-xs text-slate-600 leading-relaxed">
+                Are you sure you want to permanently delete <strong>Order #{order.orderNumber}</strong>?
+              </p>
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-[11px] text-amber-800 flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                <span>
+                  This action cannot be undone. The order, all items, customer address snapshot, and payment attempts will be permanently erased from the database.
+                </span>
+              </div>
+            </div>
+
+            <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={() => setShowDeleteModal(false)}
+                disabled={isDeleting}
+                className="px-3.5 py-1.5 text-xs font-semibold text-slate-600 hover:text-slate-800 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteOrder}
+                disabled={isDeleting}
+                className="px-4 py-1.5 text-xs font-semibold text-white bg-rose-600 hover:bg-rose-700 rounded-lg transition-colors shadow-xs flex items-center gap-1.5 disabled:opacity-50"
+              >
+                {isDeleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                <span>{isDeleting ? 'Deleting...' : 'Yes, Delete Order'}</span>
+              </button>
             </div>
           </div>
         </div>

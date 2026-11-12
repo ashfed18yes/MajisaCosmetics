@@ -40,6 +40,10 @@ export interface UpdateFulfillmentStatusInput {
   cancellationNote?: string | null;
 }
 
+export interface DeleteOrderInput {
+  orderId: string;
+}
+
 /**
  * Server Action: Administrative Manual Payment Verification.
  *
@@ -584,3 +588,80 @@ export async function getSignedProofUrlAction(publicId: string) {
     };
   }
 }
+
+/**
+ * Server Action: Administrative Permanent Order Deletion.
+ *
+ * Permanently removes an order, its line items, payment records, and collection audits.
+ * Requires active administrative session.
+ */
+export async function deleteOrderAction(input: DeleteOrderInput) {
+  try {
+    await requireAdmin();
+
+    if (!input.orderId || !isValidUuid(input.orderId)) {
+      return { success: false, error: 'Invalid order ID provided.' };
+    }
+
+    const adminClient = createAdminClient();
+
+    // 1. Authoritative check that the order exists
+    const { data: order, error: fetchErr } = await adminClient
+      .from('orders')
+      .select('id, order_number, order_type')
+      .eq('id', input.orderId)
+      .maybeSingle();
+
+    if (fetchErr || !order) {
+      return { success: false, error: 'Order not found in database.' };
+    }
+
+    // 2. Clear related records defensively
+    await adminClient
+      .from('order_collections')
+      .delete()
+      .eq('order_id', input.orderId);
+
+    await adminClient
+      .from('order_items')
+      .delete()
+      .eq('order_id', input.orderId);
+
+    await adminClient
+      .from('payments')
+      .delete()
+      .eq('order_id', input.orderId);
+
+    // 3. Delete parent order record
+    const { error: deleteErr } = await adminClient
+      .from('orders')
+      .delete()
+      .eq('id', input.orderId);
+
+    if (deleteErr) {
+      console.error('Delete order error:', deleteErr);
+      return { success: false, error: deleteErr.message || 'Database rejected order deletion.' };
+    }
+
+    // 4. Revalidate all cached admin routes
+    revalidatePath('/admin');
+    revalidatePath('/admin/orders/online');
+    revalidatePath('/admin/orders/cod');
+    revalidatePath(`/admin/orders/${input.orderId}`);
+
+    return {
+      success: true,
+      orderId: input.orderId,
+      orderNumber: order.order_number,
+      orderType: order.order_type,
+      message: `Order #${order.order_number} has been permanently deleted.`,
+    };
+  } catch (err: unknown) {
+    console.error('deleteOrderAction exception:', err);
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : 'An unexpected error occurred while deleting order.',
+    };
+  }
+}
+
