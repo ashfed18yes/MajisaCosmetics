@@ -168,7 +168,7 @@ export default async function AdminOnlineOrdersPage({ searchParams }: PageProps)
       orderType: 'online' as const,
       paymentStatus: order.payment_status || 'pending',
       itemsSubtotal: Number(order.subtotal) || 0,
-      deliveryFee: Number(order.delivery_fee) || 100,
+      deliveryFee: order.delivery_fee != null ? Number(order.delivery_fee) : 1,
       shippingAddress: {
         recipientName: customerName,
         phone: customerPhone,

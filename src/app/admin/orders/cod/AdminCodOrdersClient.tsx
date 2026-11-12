@@ -162,27 +162,28 @@ export default function AdminCodOrdersClient({
     }
   };
 
-  // 1. Verify ₹100 Advance
+  // 1. Verify COD Delivery Advance
   const handleVerifyAdvance = () => {
     if (!selectedOrder || !selectedOrder.activePayment) return;
     setActionError(null);
     setActionSuccess(null);
 
     const activeOrder = selectedOrder;
+    const advanceAmount = activeOrder.activePayment?.amountExpected ?? activeOrder.deliveryFee;
 
     startTransition(async () => {
       const res = await verifyPaymentAction({
         paymentId: activeOrder.activePayment!.id,
         orderId: activeOrder.id,
-        confirmedAmountReceived: 100, // Fixed ₹100 advance
+        confirmedAmountReceived: advanceAmount,
       });
 
       if (!res.success) {
         setActionError(res.error || 'Failed to verify COD advance payment.');
       } else {
         const msg = res.alreadyVerified
-          ? 'COD ₹100 advance has already been verified and confirmed in the database.'
-          : 'COD ₹100 advance verified successfully! Order is Confirmed and ready for packaging.';
+          ? `COD ₹${advanceAmount.toFixed(2)} advance has already been verified and confirmed in the database.`
+          : `COD ₹${advanceAmount.toFixed(2)} advance verified successfully! Order is Confirmed and ready for packaging.`;
         setActionSuccess(msg);
 
         setLiveOrders((prev) =>
@@ -193,12 +194,12 @@ export default function AdminCodOrdersClient({
                 status: 'Confirmed',
                 displayStatus: 'Processing',
                 paymentStatus: 'advance_paid',
-                advancePaid: 100,
+                advancePaid: advanceAmount,
                 activePayment: ord.activePayment
                   ? {
                       ...ord.activePayment,
                       status: 'verified',
-                      amountCredited: 100,
+                      amountCredited: advanceAmount,
                     }
                   : null,
               };
@@ -214,12 +215,12 @@ export default function AdminCodOrdersClient({
                 status: 'Confirmed',
                 displayStatus: 'Processing',
                 paymentStatus: 'advance_paid',
-                advancePaid: 100,
+                advancePaid: advanceAmount,
                 activePayment: prev.activePayment
                   ? {
                       ...prev.activePayment,
                       status: 'verified',
-                      amountCredited: 100,
+                      amountCredited: advanceAmount,
                     }
                   : null,
               }
@@ -457,7 +458,7 @@ export default function AdminCodOrdersClient({
     );
   };
 
-  const renderPaymentStatusBadge = (paymentStatus: string) => {
+  const renderPaymentStatusBadge = (paymentStatus: string, advanceAmount?: number) => {
     switch (paymentStatus) {
       case 'fully_paid':
         return (
@@ -470,7 +471,7 @@ export default function AdminCodOrdersClient({
         return (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
             <CheckCircle2 className="w-3.5 h-3.5 text-blue-600" />
-            <span>Advance Paid (₹100)</span>
+            <span>Advance Paid{advanceAmount != null ? ` (₹${advanceAmount.toFixed(2)})` : ''}</span>
           </span>
         );
       case 'rejected':
@@ -512,7 +513,7 @@ export default function AdminCodOrdersClient({
             </span>
           </div>
           <p className="text-xs text-slate-500 mt-0.5">
-            Manage ₹100 delivery advance verifications and doorstep cash balance collections
+            Manage delivery advance verifications and doorstep cash balance collections
           </p>
         </div>
 
@@ -628,7 +629,7 @@ export default function AdminCodOrdersClient({
                       No live COD orders found
                     </p>
                     <p className="text-xs text-slate-400 mt-1 max-w-md mx-auto">
-                      Customer orders with Cash on Delivery will appear here for ₹100 delivery advance verification and doorstep settlement.
+                      Customer orders with Cash on Delivery will appear here for delivery advance verification and doorstep settlement.
                     </p>
                   </td>
                 </tr>
@@ -825,14 +826,14 @@ export default function AdminCodOrdersClient({
                 </div>
               </div>
 
-              {/* ₹100 Advance Verification Section */}
+              {/* Advance Verification Section */}
               <div className="p-4 rounded-xl bg-slate-50 border border-slate-100 space-y-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-slate-500">
                     <CreditCard className="w-4 h-4 text-slate-400" />
-                    <span>Advance Payment (₹100)</span>
+                    <span>Advance Payment (₹{selectedOrder.deliveryFee.toFixed(2)})</span>
                   </div>
-                  <div>{renderPaymentStatusBadge(selectedOrder.paymentStatus)}</div>
+                  <div>{renderPaymentStatusBadge(selectedOrder.paymentStatus, selectedOrder.advancePaid > 0 ? selectedOrder.advancePaid : selectedOrder.deliveryFee)}</div>
                 </div>
 
                 {selectedOrder.activePayment ? (
@@ -884,7 +885,7 @@ export default function AdminCodOrdersClient({
                     {selectedOrder.paymentStatus === 'advance_paid' || selectedOrder.paymentStatus === 'fully_paid' ? (
                       <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center gap-2 text-xs font-semibold text-emerald-800">
                         <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                        <span>₹100 delivery advance verified & confirmed.</span>
+                        <span>₹{selectedOrder.deliveryFee.toFixed(2)} delivery advance verified & confirmed.</span>
                       </div>
                     ) : selectedOrder.activePayment.status === 'rejected' ? (
                       <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs font-semibold text-rose-800 flex items-center gap-2">
@@ -911,7 +912,7 @@ export default function AdminCodOrdersClient({
                               ) : (
                                 <CheckCircle2 className="w-3.5 h-3.5" />
                               )}
-                              <span>Verify ₹100 Advance</span>
+                              <span>Verify ₹{selectedOrder.deliveryFee.toFixed(2)} Advance</span>
                             </button>
                             <button
                               type="button"
@@ -992,12 +993,12 @@ export default function AdminCodOrdersClient({
 
                 {['Pending Verification', 'Awaiting Payment', 'Payment Action Required'].includes(selectedOrder.status) ? (
                   <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-xl text-center text-xs font-semibold text-amber-800">
-                    Fulfillment Locked: ₹100 Advance must be verified before processing or shipping.
+                    Fulfillment Locked: ₹{selectedOrder.deliveryFee.toFixed(2)} Advance must be verified before processing or shipping.
                   </div>
                 ) : selectedOrder.status === 'Confirmed' ? (
                   <div className="space-y-2">
                     <p className="text-xs text-slate-600">
-                      ₹100 advance confirmed. Begin preparing parcel for packaging and shipping.
+                      ₹{selectedOrder.deliveryFee.toFixed(2)} advance confirmed. Begin preparing parcel for packaging and shipping.
                     </p>
                     <button
                       type="button"

@@ -138,7 +138,7 @@ export default async function AdminOrderDetailsPage({ params }: PageProps) {
     status: rawOrder.status || 'Pending Verification',
     paymentStatus: rawOrder.payment_status || 'pending',
     subtotal: Number(rawOrder.subtotal) || 0,
-    deliveryFee: Number(rawOrder.delivery_fee) || 100,
+    deliveryFee: rawOrder.delivery_fee != null ? Number(rawOrder.delivery_fee) : 1,
     totalAmount: Number(rawOrder.total_amount) || 0,
     advanceAmountPaid: Number(rawOrder.advance_amount_paid) || 0,
     balanceAmountDue: Number(rawOrder.balance_amount_due) || 0,

@@ -1141,7 +1141,7 @@ export default function CheckoutClient({
                 <span className="text-ivory-200 font-light text-[11px] sm:text-xs">
                   {activeOrder.orderType === 'online'
                     ? 'Online Payment (Full Order Amount):'
-                    : 'Cash on Delivery (₹100 Advance):'}
+                    : `Cash on Delivery (₹${activeOrder.amountExpected} Advance):`}
                 </span>
                 <span className="font-bold text-rosegold-200 text-sm sm:text-base">
                   ₹{activeOrder.amountExpected.toLocaleString('en-IN')}

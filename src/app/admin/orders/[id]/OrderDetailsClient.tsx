@@ -394,7 +394,7 @@ export default function OrderDetailsClient({ initialOrder }: OrderDetailsClientP
         return (
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-800">
             <ShieldCheck className="w-3.5 h-3.5 text-blue-600" />
-            <span>₹100 Advance Paid</span>
+            <span>₹{order.advanceAmountPaid > 0 ? order.advanceAmountPaid.toFixed(2) : order.deliveryFee.toFixed(2)} Advance Paid</span>
           </span>
         );
       case 'refunded':
@@ -709,7 +709,7 @@ export default function OrderDetailsClient({ initialOrder }: OrderDetailsClientP
                             Attempt #{p.attemptNumber}
                           </span>
                           <span className="text-[10px] font-mono uppercase bg-slate-100 px-1.5 py-0.5 rounded text-slate-600">
-                            {p.paymentMethod === 'cod_advance' ? 'COD Advance (₹100)' : 'Full UPI Order'}
+                            {p.paymentMethod === 'cod_advance' ? `COD Advance (₹${p.amountExpected.toFixed(2)})` : 'Full UPI Order'}
                           </span>
                         </div>
                         <div className="flex items-center gap-2">
@@ -857,7 +857,7 @@ export default function OrderDetailsClient({ initialOrder }: OrderDetailsClientP
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                 <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
-                  <span className="text-slate-400 block mb-0.5">₹100 Delivery Advance</span>
+                  <span className="text-slate-400 block mb-0.5">₹{order.deliveryFee.toFixed(2)} Delivery Advance</span>
                   <span className="font-bold text-slate-900 text-sm">
                     ₹{order.advanceAmountPaid.toFixed(2)}
                   </span>

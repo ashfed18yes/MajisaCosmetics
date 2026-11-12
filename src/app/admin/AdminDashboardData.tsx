@@ -157,6 +157,7 @@ export default async function AdminDashboardData() {
       customerName,
       customerEmail,
       totalAmount: Number(order.total_amount) || 0,
+      deliveryFee: order.delivery_fee != null ? Number(order.delivery_fee) : 100,
       paymentStatus: order.payment_status || 'pending',
       status: order.status || 'Pending Verification',
       date: order.created_at ? order.created_at.split('T')[0] : 'Today',

@@ -168,7 +168,7 @@ export default async function AdminCodOrdersPage({ searchParams }: PageProps) {
       orderType: 'cod' as const,
       paymentStatus: order.payment_status || 'pending',
       itemsSubtotal: Number(order.subtotal) || 0,
-      deliveryFee: Number(order.delivery_fee) || 100,
+      deliveryFee: order.delivery_fee != null ? Number(order.delivery_fee) : 1,
       advancePaid: Number(order.advance_amount_paid) || 0,
       balanceDue: Number(order.balance_amount_due) || Number(order.subtotal) || 0,
       shippingAddress: {
@@ -186,7 +186,7 @@ export default async function AdminCodOrdersPage({ searchParams }: PageProps) {
             proofAssetId: latestPayment.proof_public_id,
             proofSecurePath: latestPayment.proof_public_id,
             status: latestPayment.verification_status,
-            amountExpected: Number(latestPayment.amount_expected) || 100,
+            amountExpected: latestPayment.amount_expected != null ? Number(latestPayment.amount_expected) : (order.delivery_fee != null ? Number(order.delivery_fee) : 1),
             amountCredited: latestPayment.amount_submitted ? Number(latestPayment.amount_submitted) : null,
             createdAt: latestPayment.created_at,
           }

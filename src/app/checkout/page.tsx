@@ -50,7 +50,8 @@ export default async function CheckoutPage() {
   const rawAddresses = addressesRes.data;
   const deliverySetting = deliveryRes.data;
 
-  let deliveryFee = 100.0;
+  // Default delivery fee (temporarily 1.0 for testing, restores to 100.0)
+  let deliveryFee = 1.0;
   if (deliverySetting?.value && typeof deliverySetting.value === 'object') {
     const settingVal = deliverySetting.value as {
       delivery_fee?: number;

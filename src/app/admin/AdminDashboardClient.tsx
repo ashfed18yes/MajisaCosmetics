@@ -26,6 +26,7 @@ export interface DashboardOrderRow {
   customerName: string;
   customerEmail: string;
   totalAmount: number;
+  deliveryFee?: number;
   paymentStatus: string;
   status: string;
   date: string;
@@ -311,7 +312,9 @@ export default function AdminDashboardClient({
                     <td className="py-2 px-2.5 text-slate-700 font-medium">{order.customerName}</td>
                     <td className="py-2 px-2.5">
                       <span className="uppercase text-[10px] font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200">
-                        {order.orderType === 'cod' ? 'COD (₹100)' : 'Online UPI'}
+                        {order.orderType === 'cod'
+                          ? `COD (₹${(order.deliveryFee != null ? order.deliveryFee : 100).toFixed(0)})`
+                          : 'Online UPI'}
                       </span>
                     </td>
                     <td className="py-2 px-2.5 font-semibold text-slate-900">₹{order.totalAmount.toFixed(2)}</td>

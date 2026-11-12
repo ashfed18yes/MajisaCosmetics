@@ -96,12 +96,12 @@ export default function CheckoutSuccessClient({ order }: SuccessClientProps) {
               <h2 className="font-serif text-lg sm:text-xl font-bold text-charcoal-900">
                 {isOnline
                   ? 'Online UPI Order — Verification Pending'
-                  : 'Cash on Delivery — ₹100 Advance Verification Pending'}
+                  : `Cash on Delivery — ₹${deliveryFee.toLocaleString('en-IN')} Advance Verification Pending`}
               </h2>
               <p className="text-[11px] sm:text-xs text-charcoal-500 font-light">
                 {isOnline
                   ? 'Full order amount paid via dynamic UPI QR'
-                  : '₹100 fixed delivery fee paid via UPI; product amount due at doorstep'}
+                  : `₹${deliveryFee.toLocaleString('en-IN')} fixed delivery fee paid via UPI; product amount due at doorstep`}
               </p>
             </div>
           </div>
@@ -167,7 +167,7 @@ export default function CheckoutSuccessClient({ order }: SuccessClientProps) {
               <p className="font-light text-[11px] sm:text-xs">
                 {isOnline
                   ? 'Our accounts department independently validates your transaction against our bank statement. Once verified, your order will transition to Confirmed and be handed over to our courier partner.'
-                  : `Our team will verify your ₹100 delivery advance. Once verified, your parcel will be dispatched. You will pay the remaining ₹${balanceDue.toLocaleString(
+                  : `Our team will verify your ₹${deliveryFee.toLocaleString('en-IN')} delivery advance. Once verified, your parcel will be dispatched. You will pay the remaining ₹${balanceDue.toLocaleString(
                       'en-IN'
                     )} in cash to the delivery agent upon receiving the package.`}
               </p>
