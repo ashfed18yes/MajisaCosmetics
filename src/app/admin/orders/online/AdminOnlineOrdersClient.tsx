@@ -122,6 +122,8 @@ export default function AdminOnlineOrdersClient({
   // Selected order for inspection slide-over
   const [selectedOrder, setSelectedOrder] = useState<AdminOrderRow | null>(null);
   const [isPendingAction, startTransition] = useTransition();
+  const [isVerifyingPayment, setIsVerifyingPayment] = useState(false);
+  const [isRejectingPayment, setIsRejectingPayment] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
@@ -221,19 +223,22 @@ export default function AdminOnlineOrdersClient({
   };
 
   // 1. Verify Payment Action
-  const handleVerifyPayment = () => {
-    if (!selectedOrder || !selectedOrder.activePayment) return;
+  const handleVerifyPayment = async () => {
+    if (!selectedOrder || !selectedOrder.activePayment || isVerifyingPayment) return;
 
     setActionError(null);
     setActionSuccess(null);
+    setIsVerifyingPayment(true);
 
     const activeOrder = selectedOrder;
+    const activePayment = selectedOrder.activePayment;
+    const expectedAmount = activePayment.amountExpected ?? activeOrder.total;
 
-    startTransition(async () => {
+    try {
       const res = await verifyPaymentAction({
-        paymentId: activeOrder.activePayment!.id,
+        paymentId: activePayment.id,
         orderId: activeOrder.id,
-        confirmedAmountReceived: activeOrder.total,
+        confirmedAmountReceived: expectedAmount,
       });
 
       if (!res.success) {
@@ -257,7 +262,7 @@ export default function AdminOnlineOrdersClient({
                   ? {
                     ...ord.activePayment,
                     status: 'verified',
-                    amountCredited: activeOrder.total,
+                    amountCredited: expectedAmount,
                   }
                   : null,
               };
@@ -277,34 +282,43 @@ export default function AdminOnlineOrdersClient({
                 ? {
                   ...prev.activePayment,
                   status: 'verified',
-                  amountCredited: activeOrder.total,
+                  amountCredited: expectedAmount,
                 }
                 : null,
             }
             : prev
         );
 
-        router.refresh();
+        startTransition(() => {
+          router.refresh();
+        });
       }
-    });
+    } catch (err: unknown) {
+      console.error('handleVerifyPayment error:', err);
+      setActionError(err instanceof Error ? err.message : 'Network error verifying payment.');
+    } finally {
+      setIsVerifyingPayment(false);
+    }
   };
 
   // 2. Reject Payment Action
-  const handleRejectPayment = () => {
-    if (!selectedOrder || !selectedOrder.activePayment) return;
+  const handleRejectPayment = async () => {
+    if (!selectedOrder || !selectedOrder.activePayment || isRejectingPayment) return;
     if (!rejectionReason.trim()) {
       setActionError('Please specify a rejection reason for the customer.');
       return;
     }
 
+    const activeOrder = selectedOrder;
+    const activePayment = selectedOrder.activePayment;
+
     setActionError(null);
     setActionSuccess(null);
+    setIsRejectingPayment(true);
 
-    const activeOrder = selectedOrder;
-
-    startTransition(async () => {
+    try {
       const res = await rejectPaymentAction({
-        paymentId: activeOrder.activePayment!.id,
+        paymentId: activePayment.id,
         orderId: activeOrder.id,
         rejectionReason: rejectionReason.trim(),
       });
@@ -353,9 +367,16 @@ export default function AdminOnlineOrdersClient({
             : prev
         );
 
-        router.refresh();
+        startTransition(() => {
+          router.refresh();
+        });
       }
-    });
+    } catch (err: unknown) {
+      console.error('handleRejectPayment error:', err);
+      setActionError(err instanceof Error ? err.message : 'Network error rejecting payment.');
+    } finally {
+      setIsRejectingPayment(false);
+    }
   };
 
   // 3. Update Fulfillment Transition Action
@@ -788,6 +809,31 @@ export default function AdminOnlineOrdersClient({
 
             {/* Drawer Content */}
             <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-5">
+              {/* Drawer Inline Action Feedback */}
+              {actionSuccess && (
+                <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-between text-xs text-emerald-800 animate-in fade-in duration-150">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <span>{actionSuccess}</span>
+                  </div>
+                  <button type="button" onClick={() => setActionSuccess(null)} className="text-emerald-700 hover:text-emerald-900">
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
+
+              {actionError && (
+                <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl flex items-center justify-between text-xs text-rose-800 animate-in fade-in duration-150">
+                  <div className="flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                    <span>{actionError}</span>
+                  </div>
+                  <button type="button" onClick={() => setActionError(null)} className="text-rose-700 hover:text-rose-900">
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
+
               {/* Customer Information */}
               <div className="p-4 rounded-xl bg-slate-50 border border-slate-100 space-y-2">
                 <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-slate-500">
@@ -917,28 +963,33 @@ export default function AdminOnlineOrdersClient({
                     ) : (
                       <div className="space-y-2 pt-1">
                         {!showRejectInput ? (
-                          <div className="grid grid-cols-2 gap-2">
+                          <div className="flex flex-col sm:flex-row gap-2">
                             <button
                               type="button"
                               onClick={handleVerifyPayment}
-                              disabled={isPendingAction}
-                              className="py-2 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold text-xs transition-colors shadow-xs flex items-center justify-center gap-1.5 disabled:opacity-50"
+                              disabled={isVerifyingPayment || isRejectingPayment}
+                              className="flex-1 min-h-[44px] sm:min-h-[38px] py-2 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold text-xs transition-colors shadow-xs flex items-center justify-center gap-1.5 disabled:opacity-50 cursor-pointer"
                             >
-                              {isPendingAction ? (
-                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              {isVerifyingPayment ? (
+                                <>
+                                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                  <span>Verifying...</span>
+                                </>
                               ) : (
-                                <CheckCircle2 className="w-3.5 h-3.5" />
+                                <>
+                                  <CheckCircle2 className="w-3.5 h-3.5" />
+                                  <span>Verify ₹{(selectedOrder.activePayment?.amountExpected ?? selectedOrder.total).toFixed(2)} Payment</span>
+                                </>
                               )}
-                              <span>Verify & Confirm</span>
                             </button>
                             <button
                               type="button"
                               onClick={() => setShowRejectInput(true)}
-                              disabled={isPendingAction}
-                              className="py-2 px-3 bg-white hover:bg-rose-50 text-rose-600 border border-rose-200 rounded-xl font-semibold text-xs transition-colors flex items-center justify-center gap-1.5"
+                              disabled={isVerifyingPayment || isRejectingPayment}
+                              className="min-h-[44px] sm:min-h-[38px] py-2 px-3 bg-white hover:bg-rose-50 text-rose-600 border border-rose-200 rounded-xl font-semibold text-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
                             >
                               <XCircle className="w-3.5 h-3.5" />
-                              <span>Reject Payment</span>
+                              <span>Reject</span>
                             </button>
                           </div>
                         ) : (
@@ -951,23 +1002,24 @@ export default function AdminOnlineOrdersClient({
                               value={rejectionReason}
                               onChange={(e) => setRejectionReason(e.target.value)}
                               placeholder="e.g. UTR mismatch, blur screenshot"
-                              className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-xs"
+                              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs"
                             />
                             <div className="flex items-center justify-end gap-2 pt-1">
                               <button
                                 type="button"
                                 onClick={() => setShowRejectInput(false)}
-                                className="px-3 py-1 text-slate-500 hover:text-slate-700 text-xs"
+                                className="min-h-[40px] px-3 py-1 text-slate-500 hover:text-slate-700 text-xs cursor-pointer"
                               >
                                 Cancel
                               </button>
                               <button
                                 type="button"
                                 onClick={handleRejectPayment}
-                                disabled={isPendingAction || !rejectionReason.trim()}
-                                className="px-3 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-semibold disabled:opacity-50"
+                                disabled={isRejectingPayment || !rejectionReason.trim()}
+                                className="min-h-[40px] px-3 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-semibold disabled:opacity-50 cursor-pointer flex items-center gap-1.5"
                               >
-                                {isPendingAction ? 'Rejecting...' : 'Confirm Rejection'}
+                                {isRejectingPayment && <Loader2 className="w-3 h-3 animate-spin" />}
+                                <span>{isRejectingPayment ? 'Rejecting...' : 'Confirm Rejection'}</span>
                               </button>
                             </div>
                           </div>

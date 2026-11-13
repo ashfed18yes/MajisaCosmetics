@@ -129,6 +129,13 @@ export default function OrderDetailsClient({ initialOrder }: OrderDetailsClientP
   const router = useRouter();
   const [order, setOrder] = useState<OrderDetailsData>(initialOrder);
   const [isPending, startTransition] = useTransition();
+  const [isVerifyingPaymentId, setIsVerifyingPaymentId] = useState<string | null>(null);
+  const [isRejectingPayment, setIsRejectingPayment] = useState(false);
+  const [isSavingCodCollection, setIsSavingCodCollection] = useState(false);
+  const [isUpdatingFulfillment, setIsUpdatingFulfillment] = useState(false);
+  const [codCollectionModalError, setCodCollectionModalError] = useState<string | null>(null);
+  const [dispatchModalError, setDispatchModalError] = useState<string | null>(null);
+  const [rejectionModalError, setRejectionModalError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
 
@@ -179,7 +186,7 @@ export default function OrderDetailsClient({ initialOrder }: OrderDetailsClientP
   };
 
   // Payment Verification Handler with immediate state sync and duplicate prevention
-  const handleVerifyPayment = (paymentId: string, expectedAmount: number) => {
+  const handleVerifyPayment = async (paymentId: string, expectedAmount: number) => {
     const targetPayment = order.payments.find((p) => p.id === paymentId);
     if (targetPayment && targetPayment.verificationStatus === 'verified') {
       setActionSuccess('This payment attempt has already been verified.');
@@ -189,11 +196,13 @@ export default function OrderDetailsClient({ initialOrder }: OrderDetailsClientP
       setActionError(`Cannot verify payment with status: "${targetPayment.verificationStatus}".`);
       return;
     }
+    if (isVerifyingPaymentId) return;
 
-    startTransition(async () => {
-      setActionError(null);
-      setActionSuccess(null);
+    setActionError(null);
+    setActionSuccess(null);
+    setIsVerifyingPaymentId(paymentId);
 
+    try {
       const res = await verifyPaymentAction({
         paymentId,
         orderId: order.id,
@@ -222,23 +231,32 @@ export default function OrderDetailsClient({ initialOrder }: OrderDetailsClientP
               : p
           ),
         }));
-        router.refresh();
+        startTransition(() => {
+          router.refresh();
+        });
       }
-    });
+    } catch (err: unknown) {
+      console.error('handleVerifyPayment exception:', err);
+      setActionError(err instanceof Error ? err.message : 'Network error verifying payment.');
+    } finally {
+      setIsVerifyingPaymentId(null);
+    }
   };
 
   // Payment Rejection Handler with immediate state sync
-  const handleRejectPayment = () => {
-    if (!rejectingPaymentId) return;
+  const handleRejectPayment = async () => {
+    if (!rejectingPaymentId || isRejectingPayment) return;
     if (!rejectionReasonInput.trim()) {
-      setActionError('Please provide a specific rejection reason.');
+      setRejectionModalError('Please provide a specific rejection reason.');
       return;
     }
 
-    startTransition(async () => {
-      setActionError(null);
-      setActionSuccess(null);
+    setActionError(null);
+    setActionSuccess(null);
+    setRejectionModalError(null);
+    setIsRejectingPayment(true);
 
+    try {
       const res = await rejectPaymentAction({
         paymentId: rejectingPaymentId,
         orderId: order.id,
@@ -246,13 +264,16 @@ export default function OrderDetailsClient({ initialOrder }: OrderDetailsClientP
       });
 
       if (!res.success) {
-        setActionError(res.error || 'Payment rejection failed.');
+        const errorMsg = res.error || 'Payment rejection failed.';
+        setRejectionModalError(errorMsg);
+        setActionError(errorMsg);
       } else {
         setActionSuccess('Payment attempt rejected. Order marked Action Required.');
         const targetId = rejectingPaymentId;
         const reason = rejectionReasonInput.trim();
         setRejectingPaymentId(null);
         setRejectionReasonInput('');
+        setRejectionModalError(null);
         setOrder((prev) => ({
           ...prev,
           status: 'Payment Action Required',
@@ -267,17 +288,29 @@ export default function OrderDetailsClient({ initialOrder }: OrderDetailsClientP
               : p
           ),
         }));
-        router.refresh();
+        startTransition(() => {
+          router.refresh();
+        });
       }
-    });
+    } catch (err: unknown) {
+      console.error('handleRejectPayment exception:', err);
+      const errorMsg = err instanceof Error ? err.message : 'Network error rejecting payment.';
+      setRejectionModalError(errorMsg);
+      setActionError(errorMsg);
+    } finally {
+      setIsRejectingPayment(false);
+    }
   };
 
   // Doorstep COD Cash Collection Handler with immediate state sync
-  const handleConfirmCodCollection = () => {
-    startTransition(async () => {
-      setActionError(null);
-      setActionSuccess(null);
+  const handleConfirmCodCollection = async () => {
+    if (isSavingCodCollection) return;
+    setActionError(null);
+    setActionSuccess(null);
+    setCodCollectionModalError(null);
+    setIsSavingCodCollection(true);
 
+    try {
       const res = await confirmCodCollectionAction({
         orderId: order.id,
         confirmedCollectedAmount: order.balanceAmountDue,
@@ -286,11 +319,19 @@ export default function OrderDetailsClient({ initialOrder }: OrderDetailsClientP
       });
 
       if (!res.success) {
-        setActionError(res.error || 'Failed to confirm balance collection.');
+        const errorMsg = res.error || 'Failed to confirm balance collection.';
+        setCodCollectionModalError(errorMsg);
+        setActionError(errorMsg);
       } else {
-        setActionSuccess('Doorstep cash collection confirmed! Order is now Fully Paid.');
+        const isAlready = Boolean((res as any).alreadyCollected);
+        setActionSuccess(
+          isAlready
+            ? 'COD doorstep balance has already been collected and recorded in the database.'
+            : 'Doorstep cash collection confirmed! Order is now Fully Paid.'
+        );
         setShowCodCollectionModal(false);
         setCollectionNotesInput('');
+        setCodCollectionModalError(null);
         setOrder((prev) => ({
           ...prev,
           paymentStatus: 'fully_paid',
@@ -300,17 +341,29 @@ export default function OrderDetailsClient({ initialOrder }: OrderDetailsClientP
           status: prev.status === 'Dispatched' ? 'Delivered' : prev.status,
           deliveredAt: prev.status === 'Dispatched' ? (prev.deliveredAt || new Date().toISOString()) : prev.deliveredAt,
         }));
-        router.refresh();
+        startTransition(() => {
+          router.refresh();
+        });
       }
-    });
+    } catch (err: unknown) {
+      console.error('handleConfirmCodCollection exception:', err);
+      const errorMsg = err instanceof Error ? err.message : 'Network error confirming balance collection.';
+      setCodCollectionModalError(errorMsg);
+      setActionError(errorMsg);
+    } finally {
+      setIsSavingCodCollection(false);
+    }
   };
 
   // Fulfillment Lifecycle Transitions Handler with immediate state sync
-  const handleFulfillmentTransition = (newStatus: 'Processing' | 'Dispatched' | 'Delivered' | 'Cancelled') => {
-    startTransition(async () => {
-      setActionError(null);
-      setActionSuccess(null);
+  const handleFulfillmentTransition = async (newStatus: 'Processing' | 'Dispatched' | 'Delivered' | 'Cancelled') => {
+    if (isUpdatingFulfillment) return;
+    setActionError(null);
+    setActionSuccess(null);
+    setDispatchModalError(null);
+    setIsUpdatingFulfillment(true);
 
+    try {
       const res = await updateFulfillmentStatusAction({
         orderId: order.id,
         newStatus,
@@ -319,10 +372,15 @@ export default function OrderDetailsClient({ initialOrder }: OrderDetailsClientP
       });
 
       if (!res.success) {
-        setActionError(res.error || 'Failed to update fulfillment status.');
+        const errorMsg = res.error || 'Failed to update fulfillment status.';
+        if (newStatus === 'Dispatched') {
+          setDispatchModalError(errorMsg);
+        }
+        setActionError(errorMsg);
       } else {
         setActionSuccess(`Order status transitioned to ${newStatus}.`);
         setShowDispatchModal(false);
+        setDispatchModalError(null);
         setOrder((prev) => ({
           ...prev,
           status: newStatus,
@@ -332,9 +390,20 @@ export default function OrderDetailsClient({ initialOrder }: OrderDetailsClientP
           deliveredAt: newStatus === 'Delivered' ? (prev.deliveredAt || new Date().toISOString()) : prev.deliveredAt,
           cancelledAt: newStatus === 'Cancelled' ? (prev.cancelledAt || new Date().toISOString()) : prev.cancelledAt,
         }));
-        router.refresh();
+        startTransition(() => {
+          router.refresh();
+        });
       }
-    });
+    } catch (err: unknown) {
+      console.error('handleFulfillmentTransition exception:', err);
+      const errorMsg = err instanceof Error ? err.message : 'Network error updating fulfillment.';
+      if (newStatus === 'Dispatched') {
+        setDispatchModalError(errorMsg);
+      }
+      setActionError(errorMsg);
+    } finally {
+      setIsUpdatingFulfillment(false);
+    }
   };
 
   // Delete Order Handler
@@ -777,20 +846,21 @@ export default function OrderDetailsClient({ initialOrder }: OrderDetailsClientP
                                 <button
                                   type="button"
                                   onClick={() => handleVerifyPayment(p.id, p.amountExpected)}
-                                  disabled={isPending || p.verificationStatus !== 'pending'}
-                                  className="px-3 py-1 bg-[#2563EB] hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded-lg font-semibold text-xs transition-colors shadow-xs flex items-center gap-1"
+                                  disabled={isVerifyingPaymentId !== null || p.verificationStatus !== 'pending'}
+                                  className="min-h-[44px] sm:min-h-[36px] px-3.5 py-1.5 bg-[#2563EB] hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded-lg font-semibold text-xs transition-colors shadow-xs flex items-center justify-center gap-1.5 cursor-pointer"
                                 >
-                                  {isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
+                                  {isVerifyingPaymentId === p.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
                                   <span>Verify & Confirm (₹{p.amountExpected.toFixed(2)})</span>
                                 </button>
                                 <button
                                   type="button"
                                   onClick={() => {
+                                    setRejectionModalError(null);
                                     setRejectingPaymentId(p.id);
                                     setRejectionReasonInput('');
                                   }}
-                                  disabled={isPending || p.verificationStatus !== 'pending'}
-                                  className="px-2.5 py-1 text-rose-600 hover:bg-rose-50 border border-rose-200 rounded-lg font-medium text-xs transition-colors"
+                                  disabled={isVerifyingPaymentId !== null || isRejectingPayment || p.verificationStatus !== 'pending'}
+                                  className="min-h-[44px] sm:min-h-[36px] px-3 py-1.5 text-rose-600 hover:bg-rose-50 border border-rose-200 rounded-lg font-medium text-xs transition-colors cursor-pointer flex items-center justify-center"
                                 >
                                   Reject
                                 </button>
@@ -1012,20 +1082,30 @@ export default function OrderDetailsClient({ initialOrder }: OrderDetailsClientP
 
       {/* Modal: Dispatch / Shipping Inputs */}
       {showDispatchModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs animate-in fade-in duration-150">
-          <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl border border-slate-100 p-6 space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto animate-in fade-in duration-150">
+          <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl border border-slate-100 p-5 sm:p-6 space-y-4 max-h-[90vh] flex flex-col my-auto">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 shrink-0">
               <h3 className="font-bold text-slate-900 text-sm">Dispatch Order #{order.orderNumber}</h3>
               <button
                 type="button"
-                onClick={() => setShowDispatchModal(false)}
-                className="text-slate-400 hover:text-slate-600"
+                onClick={() => {
+                  setShowDispatchModal(false);
+                  setDispatchModalError(null);
+                }}
+                className="text-slate-400 hover:text-slate-600 p-1"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="space-y-3 text-xs">
+            {dispatchModalError && (
+              <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl flex items-center gap-2 text-xs text-rose-800 animate-in fade-in duration-150 shrink-0">
+                <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                <span>{dispatchModalError}</span>
+              </div>
+            )}
+
+            <div className="space-y-3 text-xs overflow-y-auto pr-1">
               <div>
                 <label className="text-slate-600 font-semibold block mb-1">Courier Partner *</label>
                 <input
@@ -1033,7 +1113,7 @@ export default function OrderDetailsClient({ initialOrder }: OrderDetailsClientP
                   value={courierInput}
                   onChange={(e) => setCourierInput(e.target.value)}
                   placeholder="e.g. Delhivery, Blue Dart, DTDC"
-                  className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-xs"
                 />
               </div>
 
@@ -1044,26 +1124,37 @@ export default function OrderDetailsClient({ initialOrder }: OrderDetailsClientP
                   value={trackingInput}
                   onChange={(e) => setTrackingInput(e.target.value)}
                   placeholder="e.g. DEL-894210984"
-                  className="w-full px-3 py-2 border border-slate-200 rounded-xl font-mono focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-xl font-mono focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-xs"
                 />
               </div>
             </div>
 
-            <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+            <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-2 pt-3 border-t border-slate-100 shrink-0">
               <button
                 type="button"
-                onClick={() => setShowDispatchModal(false)}
-                className="px-4 py-2 text-xs text-slate-600 hover:bg-slate-100 rounded-xl"
+                onClick={() => {
+                  setShowDispatchModal(false);
+                  setDispatchModalError(null);
+                }}
+                disabled={isUpdatingFulfillment}
+                className="w-full sm:w-auto px-4 py-2 min-h-[44px] sm:min-h-[38px] text-xs text-slate-600 hover:text-slate-800 border border-slate-200 sm:border-transparent rounded-xl flex items-center justify-center cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 type="button"
                 onClick={() => handleFulfillmentTransition('Dispatched')}
-                disabled={isPending || !courierInput.trim() || !trackingInput.trim()}
-                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl shadow-xs disabled:opacity-50"
+                disabled={isUpdatingFulfillment || !courierInput.trim() || !trackingInput.trim()}
+                className="w-full sm:w-auto px-4 py-2 min-h-[44px] sm:min-h-[38px] bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl shadow-xs disabled:opacity-50 flex items-center justify-center gap-1.5 cursor-pointer"
               >
-                {isPending ? 'Updating...' : 'Confirm Dispatch'}
+                {isUpdatingFulfillment ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>Updating...</span>
+                  </>
+                ) : (
+                  <span>Confirm Dispatch</span>
+                )}
               </button>
             </div>
           </div>
@@ -1072,20 +1163,30 @@ export default function OrderDetailsClient({ initialOrder }: OrderDetailsClientP
 
       {/* Modal: Rejection Reason Input */}
       {rejectingPaymentId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs animate-in fade-in duration-150">
-          <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl border border-slate-100 p-6 space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto animate-in fade-in duration-150">
+          <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl border border-slate-100 p-5 sm:p-6 space-y-4 max-h-[90vh] flex flex-col my-auto">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 shrink-0">
               <h3 className="font-bold text-slate-900 text-sm">Reject Payment Attempt</h3>
               <button
                 type="button"
-                onClick={() => setRejectingPaymentId(null)}
-                className="text-slate-400 hover:text-slate-600"
+                onClick={() => {
+                  setRejectingPaymentId(null);
+                  setRejectionModalError(null);
+                }}
+                className="text-slate-400 hover:text-slate-600 p-1"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="space-y-3 text-xs">
+            {rejectionModalError && (
+              <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl flex items-center gap-2 text-xs text-rose-800 animate-in fade-in duration-150 shrink-0">
+                <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                <span>{rejectionModalError}</span>
+              </div>
+            )}
+
+            <div className="space-y-3 text-xs overflow-y-auto pr-1">
               <label className="text-slate-600 font-semibold block">
                 Provide specific reason for rejection (visible to customer for correction):
               </label>
@@ -1094,25 +1195,36 @@ export default function OrderDetailsClient({ initialOrder }: OrderDetailsClientP
                 onChange={(e) => setRejectionReasonInput(e.target.value)}
                 placeholder="e.g. UTR number not found in merchant bank account; screenshot is blurred."
                 rows={3}
-                className="w-full p-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500"
+                className="w-full p-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 text-xs"
               />
             </div>
 
-            <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+            <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-2 pt-3 border-t border-slate-100 shrink-0">
               <button
                 type="button"
-                onClick={() => setRejectingPaymentId(null)}
-                className="px-4 py-2 text-xs text-slate-600 hover:bg-slate-100 rounded-xl"
+                onClick={() => {
+                  setRejectingPaymentId(null);
+                  setRejectionModalError(null);
+                }}
+                disabled={isRejectingPayment}
+                className="w-full sm:w-auto px-4 py-2 min-h-[44px] sm:min-h-[38px] text-xs text-slate-600 hover:text-slate-800 border border-slate-200 sm:border-transparent rounded-xl flex items-center justify-center cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 type="button"
                 onClick={handleRejectPayment}
-                disabled={isPending || !rejectionReasonInput.trim()}
-                className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold rounded-xl shadow-xs disabled:opacity-50"
+                disabled={isRejectingPayment || !rejectionReasonInput.trim()}
+                className="w-full sm:w-auto px-4 py-2 min-h-[44px] sm:min-h-[38px] bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold rounded-xl shadow-xs disabled:opacity-50 flex items-center justify-center gap-1.5 cursor-pointer"
               >
-                {isPending ? 'Rejecting...' : 'Confirm Rejection'}
+                {isRejectingPayment ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>Rejecting...</span>
+                  </>
+                ) : (
+                  <span>Confirm Rejection</span>
+                )}
               </button>
             </div>
           </div>
@@ -1121,20 +1233,30 @@ export default function OrderDetailsClient({ initialOrder }: OrderDetailsClientP
 
       {/* Modal: Doorstep COD Collection Input */}
       {showCodCollectionModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs animate-in fade-in duration-150">
-          <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl border border-slate-100 p-6 space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto animate-in fade-in duration-150">
+          <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl border border-slate-100 p-5 sm:p-6 space-y-4 max-h-[90vh] flex flex-col my-auto">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 shrink-0">
               <h3 className="font-bold text-slate-900 text-sm">Record Doorstep Cash Collection</h3>
               <button
                 type="button"
-                onClick={() => setShowCodCollectionModal(false)}
-                className="text-slate-400 hover:text-slate-600"
+                onClick={() => {
+                  setShowCodCollectionModal(false);
+                  setCodCollectionModalError(null);
+                }}
+                className="text-slate-400 hover:text-slate-600 p-1"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="space-y-3 text-xs">
+            {codCollectionModalError && (
+              <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl flex items-center gap-2 text-xs text-rose-800 animate-in fade-in duration-150 shrink-0">
+                <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                <span>{codCollectionModalError}</span>
+              </div>
+            )}
+
+            <div className="space-y-3 text-xs overflow-y-auto pr-1">
               <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-900 font-semibold">
                 Amount to Collect: ₹{order.balanceAmountDue.toFixed(2)}
               </div>
@@ -1144,7 +1266,7 @@ export default function OrderDetailsClient({ initialOrder }: OrderDetailsClientP
                 <select
                   value={collectionMethodInput}
                   onChange={(e) => setCollectionMethodInput(e.target.value as any)}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-white"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-white text-xs"
                 >
                   <option value="cash">Doorstep Cash</option>
                   <option value="upi_doorstep">Doorstep UPI QR</option>
@@ -1159,26 +1281,40 @@ export default function OrderDetailsClient({ initialOrder }: OrderDetailsClientP
                   value={collectionNotesInput}
                   onChange={(e) => setCollectionNotesInput(e.target.value)}
                   placeholder="e.g. Collected by delivery executive"
-                  className="w-full px-3 py-2 border border-slate-200 rounded-xl"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs"
                 />
               </div>
             </div>
 
-            <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+            <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-2 pt-3 border-t border-slate-100 shrink-0">
               <button
                 type="button"
-                onClick={() => setShowCodCollectionModal(false)}
-                className="px-4 py-2 text-xs text-slate-600 hover:bg-slate-100 rounded-xl"
+                onClick={() => {
+                  setShowCodCollectionModal(false);
+                  setCodCollectionModalError(null);
+                }}
+                disabled={isSavingCodCollection}
+                className="w-full sm:w-auto px-4 py-2 min-h-[44px] sm:min-h-[38px] text-xs text-slate-600 hover:text-slate-800 border border-slate-200 sm:border-transparent rounded-xl flex items-center justify-center cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 type="button"
                 onClick={handleConfirmCodCollection}
-                disabled={isPending}
-                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl shadow-xs disabled:opacity-50"
+                disabled={isSavingCodCollection}
+                className="w-full sm:w-auto px-4 py-2 min-h-[44px] sm:min-h-[38px] bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl shadow-xs disabled:opacity-50 flex items-center justify-center gap-1.5 cursor-pointer"
               >
-                {isPending ? 'Saving...' : 'Confirm Balance Settled'}
+                {isSavingCodCollection ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>Saving...</span>
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    <span>Confirm Balance Settled</span>
+                  </>
+                )}
               </button>
             </div>
           </div>

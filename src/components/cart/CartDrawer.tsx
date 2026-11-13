@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import {
   X,
   Trash2,
@@ -20,6 +20,7 @@ import { useCart } from '@/context/CartContext';
 
 export default function CartDrawer() {
   const router = useRouter();
+  const pathname = usePathname();
   const {
     cart,
     isCartOpen,
@@ -32,6 +33,11 @@ export default function CartDrawer() {
   } = useCart();
 
   const [isMobileSummaryExpanded, setIsMobileSummaryExpanded] = useState(false);
+
+  // Never render storefront cart drawer on admin routes
+  if (pathname?.startsWith('/admin')) {
+    return null;
+  }
 
   const handleProceedToCheckout = () => {
     setIsCartOpen(false);

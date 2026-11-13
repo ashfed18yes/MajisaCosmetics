@@ -63,6 +63,10 @@ export default function AdminCodOrdersClient({
 
   const [selectedOrder, setSelectedOrder] = useState<AdminCodOrderRow | null>(null);
   const [isPendingAction, startTransition] = useTransition();
+  const [isVerifyingAdvance, setIsVerifyingAdvance] = useState(false);
+  const [isRejectingAdvance, setIsRejectingAdvance] = useState(false);
+  const [isSavingCollection, setIsSavingCollection] = useState(false);
+  const [collectionModalError, setCollectionModalError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
@@ -163,17 +167,20 @@ export default function AdminCodOrdersClient({
   };
 
   // 1. Verify COD Delivery Advance
-  const handleVerifyAdvance = () => {
-    if (!selectedOrder || !selectedOrder.activePayment) return;
+  const handleVerifyAdvance = async () => {
+    if (!selectedOrder || !selectedOrder.activePayment || isVerifyingAdvance) return;
+    const activeOrder = selectedOrder;
+    const activePayment = selectedOrder.activePayment;
+
     setActionError(null);
     setActionSuccess(null);
+    setIsVerifyingAdvance(true);
 
-    const activeOrder = selectedOrder;
-    const advanceAmount = activeOrder.activePayment?.amountExpected ?? activeOrder.deliveryFee;
+    const advanceAmount = activePayment.amountExpected ?? activeOrder.deliveryFee;
 
-    startTransition(async () => {
+    try {
       const res = await verifyPaymentAction({
-        paymentId: activeOrder.activePayment!.id,
+        paymentId: activePayment.id,
         orderId: activeOrder.id,
         confirmedAmountReceived: advanceAmount,
       });
@@ -227,27 +234,36 @@ export default function AdminCodOrdersClient({
             : prev
         );
 
-        router.refresh();
+        startTransition(() => {
+          router.refresh();
+        });
       }
-    });
+    } catch (err: unknown) {
+      console.error('handleVerifyAdvance error:', err);
+      setActionError(err instanceof Error ? err.message : 'Network error verifying advance payment.');
+    } finally {
+      setIsVerifyingAdvance(false);
+    }
   };
 
   // 2. Reject Advance Payment
-  const handleRejectAdvance = () => {
-    if (!selectedOrder || !selectedOrder.activePayment) return;
+  const handleRejectAdvance = async () => {
+    if (!selectedOrder || !selectedOrder.activePayment || isRejectingAdvance) return;
     if (!rejectionReason.trim()) {
       setActionError('Please specify a rejection reason.');
       return;
     }
 
+    const activeOrder = selectedOrder;
+    const activePayment = selectedOrder.activePayment;
+
     setActionError(null);
     setActionSuccess(null);
+    setIsRejectingAdvance(true);
 
-    const activeOrder = selectedOrder;
-
-    startTransition(async () => {
+    try {
       const res = await rejectPaymentAction({
-        paymentId: activeOrder.activePayment!.id,
+        paymentId: activePayment.id,
         orderId: activeOrder.id,
         rejectionReason: rejectionReason.trim(),
       });
@@ -296,20 +312,29 @@ export default function AdminCodOrdersClient({
             : prev
         );
 
-        router.refresh();
+        startTransition(() => {
+          router.refresh();
+        });
       }
-    });
+    } catch (err: unknown) {
+      console.error('handleRejectAdvance error:', err);
+      setActionError(err instanceof Error ? err.message : 'Network error rejecting advance payment.');
+    } finally {
+      setIsRejectingAdvance(false);
+    }
   };
 
   // 3. Confirm Doorstep COD Balance Settled
-  const handleConfirmCollection = () => {
-    if (!selectedOrder) return;
+  const handleConfirmCollection = async () => {
+    if (!selectedOrder || isSavingCollection) return;
     setActionError(null);
     setActionSuccess(null);
+    setCollectionModalError(null);
+    setIsSavingCollection(true);
 
     const activeOrder = selectedOrder;
 
-    startTransition(async () => {
+    try {
       const res = await confirmCodCollectionAction({
         orderId: activeOrder.id,
         confirmedCollectedAmount: activeOrder.balanceDue,
@@ -318,10 +343,17 @@ export default function AdminCodOrdersClient({
       });
 
       if (!res.success) {
-        setActionError(res.error || 'Failed to record doorstep collection.');
+        const errorMsg = res.error || 'Failed to record doorstep collection.';
+        setCollectionModalError(errorMsg);
+        setActionError(errorMsg);
       } else {
-        setActionSuccess(`₹${activeOrder.balanceDue.toFixed(2)} balance collected! Order marked as fully paid & delivered.`);
+        const successMsg = (res as any).alreadyCollected
+          ? 'COD doorstep balance has already been collected and recorded in the database. Order is fully paid & delivered.'
+          : `₹${activeOrder.balanceDue.toFixed(2)} balance collected! Order marked as fully paid & delivered.`;
+        setActionSuccess(successMsg);
         setShowCollectionModal(false);
+        setCollectionNotes('');
+        setCollectionModalError(null);
 
         setLiveOrders((prev) =>
           prev.map((ord) => {
@@ -350,9 +382,18 @@ export default function AdminCodOrdersClient({
             : prev
         );
 
-        router.refresh();
+        startTransition(() => {
+          router.refresh();
+        });
       }
-    });
+    } catch (err: unknown) {
+      console.error('handleConfirmCollection error:', err);
+      const errorMsg = err instanceof Error ? err.message : 'Network error recording balance collection.';
+      setCollectionModalError(errorMsg);
+      setActionError(errorMsg);
+    } finally {
+      setIsSavingCollection(false);
+    }
   };
 
   // 4. Fulfillment Status Transition
@@ -781,6 +822,30 @@ export default function AdminCodOrdersClient({
             </div>
 
             <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-5">
+              {/* Drawer Inline Feedback Alerts */}
+              {actionSuccess && (
+                <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-between text-xs text-emerald-800 animate-in fade-in duration-150">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <span>{actionSuccess}</span>
+                  </div>
+                  <button type="button" onClick={() => setActionSuccess(null)} className="text-emerald-700 hover:text-emerald-900">
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
+              {actionError && (
+                <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl flex items-center justify-between text-xs text-rose-800 animate-in fade-in duration-150">
+                  <div className="flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                    <span>{actionError}</span>
+                  </div>
+                  <button type="button" onClick={() => setActionError(null)} className="text-rose-700 hover:text-rose-900">
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
+
               {/* Customer Information */}
               <div className="p-4 rounded-xl bg-slate-50 border border-slate-100 space-y-2">
                 <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-slate-500">
@@ -831,9 +896,16 @@ export default function AdminCodOrdersClient({
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-slate-500">
                     <CreditCard className="w-4 h-4 text-slate-400" />
-                    <span>Advance Payment (₹{selectedOrder.deliveryFee.toFixed(2)})</span>
+                    <span>Advance Payment (₹{(selectedOrder.activePayment?.amountExpected ?? selectedOrder.deliveryFee).toFixed(2)})</span>
                   </div>
-                  <div>{renderPaymentStatusBadge(selectedOrder.paymentStatus, selectedOrder.advancePaid > 0 ? selectedOrder.advancePaid : selectedOrder.deliveryFee)}</div>
+                  <div>
+                    {renderPaymentStatusBadge(
+                      selectedOrder.paymentStatus,
+                      selectedOrder.advancePaid > 0
+                        ? selectedOrder.advancePaid
+                        : (selectedOrder.activePayment?.amountExpected ?? selectedOrder.deliveryFee)
+                    )}
+                  </div>
                 </div>
 
                 {selectedOrder.activePayment ? (
@@ -885,7 +957,9 @@ export default function AdminCodOrdersClient({
                     {selectedOrder.paymentStatus === 'advance_paid' || selectedOrder.paymentStatus === 'fully_paid' ? (
                       <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center gap-2 text-xs font-semibold text-emerald-800">
                         <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                        <span>₹{selectedOrder.deliveryFee.toFixed(2)} delivery advance verified & confirmed.</span>
+                        <span>
+                          ₹{(selectedOrder.advancePaid > 0 ? selectedOrder.advancePaid : (selectedOrder.activePayment?.amountExpected ?? selectedOrder.deliveryFee)).toFixed(2)} delivery advance verified & confirmed.
+                        </span>
                       </div>
                     ) : selectedOrder.activePayment.status === 'rejected' ? (
                       <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs font-semibold text-rose-800 flex items-center gap-2">
@@ -900,25 +974,30 @@ export default function AdminCodOrdersClient({
                     ) : (
                       <div className="pt-2 flex flex-col gap-2">
                         {!showRejectInput ? (
-                          <div className="grid grid-cols-2 gap-2">
+                          <div className="flex flex-col sm:flex-row gap-2">
                             <button
                               type="button"
                               onClick={handleVerifyAdvance}
-                              disabled={isPendingAction}
-                              className="py-2 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold text-xs transition-colors shadow-xs flex items-center justify-center gap-1.5 disabled:opacity-50"
+                              disabled={isVerifyingAdvance}
+                              className="flex-1 min-h-[44px] sm:min-h-[38px] py-2 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold text-xs transition-colors shadow-xs flex items-center justify-center gap-1.5 disabled:opacity-50 cursor-pointer"
                             >
-                              {isPendingAction ? (
-                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              {isVerifyingAdvance ? (
+                                <>
+                                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                  <span>Verifying...</span>
+                                </>
                               ) : (
-                                <CheckCircle2 className="w-3.5 h-3.5" />
+                                <>
+                                  <CheckCircle2 className="w-3.5 h-3.5" />
+                                  <span>Verify ₹{(selectedOrder.activePayment?.amountExpected ?? selectedOrder.deliveryFee).toFixed(2)} Advance</span>
+                                </>
                               )}
-                              <span>Verify ₹{selectedOrder.deliveryFee.toFixed(2)} Advance</span>
                             </button>
                             <button
                               type="button"
                               onClick={() => setShowRejectInput(true)}
-                              disabled={isPendingAction}
-                              className="py-2 px-3 bg-white hover:bg-rose-50 text-rose-600 border border-rose-200 rounded-xl font-semibold text-xs transition-colors flex items-center justify-center gap-1.5"
+                              disabled={isVerifyingAdvance || isRejectingAdvance}
+                              className="min-h-[44px] sm:min-h-[38px] py-2 px-3 bg-white hover:bg-rose-50 text-rose-600 border border-rose-200 rounded-xl font-semibold text-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
                             >
                               <XCircle className="w-3.5 h-3.5" />
                               <span>Reject Advance</span>
@@ -940,17 +1019,24 @@ export default function AdminCodOrdersClient({
                               <button
                                 type="button"
                                 onClick={() => setShowRejectInput(false)}
-                                className="px-3 py-1 text-slate-500 hover:text-slate-700 text-xs"
+                                className="px-3 py-1.5 min-h-[36px] text-slate-500 hover:text-slate-700 text-xs"
                               >
                                 Cancel
                               </button>
                               <button
                                 type="button"
                                 onClick={handleRejectAdvance}
-                                disabled={isPendingAction || !rejectionReason.trim()}
-                                className="px-3 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-semibold disabled:opacity-50"
+                                disabled={isRejectingAdvance || !rejectionReason.trim()}
+                                className="px-3.5 py-1.5 min-h-[36px] bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-semibold disabled:opacity-50 flex items-center gap-1"
                               >
-                                {isPendingAction ? 'Rejecting...' : 'Confirm Rejection'}
+                                {isRejectingAdvance ? (
+                                  <>
+                                    <Loader2 className="w-3 h-3 animate-spin" />
+                                    <span>Rejecting...</span>
+                                  </>
+                                ) : (
+                                  <span>Confirm Rejection</span>
+                                )}
                               </button>
                             </div>
                           </div>
@@ -964,7 +1050,7 @@ export default function AdminCodOrdersClient({
               </div>
 
               {/* Doorstep Collection Section (If order is delivered or out for delivery) */}
-              {selectedOrder.balanceDue > 0 && selectedOrder.status === 'Dispatched' && (
+              {selectedOrder.balanceDue > 0 && ['Dispatched', 'Delivered'].includes(selectedOrder.status) && (
                 <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 space-y-2 text-xs text-amber-900">
                   <div className="flex items-center gap-2 font-bold text-sm text-amber-950">
                     <Banknote className="w-4 h-4 text-amber-700" />
@@ -975,8 +1061,11 @@ export default function AdminCodOrdersClient({
                   </p>
                   <button
                     type="button"
-                    onClick={() => setShowCollectionModal(true)}
-                    className="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold text-xs shadow-xs transition-colors flex items-center justify-center gap-1.5"
+                    onClick={() => {
+                      setCollectionModalError(null);
+                      setShowCollectionModal(true);
+                    }}
+                    className="w-full min-h-[44px] py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold text-xs shadow-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
                   >
                     <CheckCircle2 className="w-3.5 h-3.5" />
                     <span>Confirm Doorstep Balance Collected</span>
@@ -993,18 +1082,18 @@ export default function AdminCodOrdersClient({
 
                 {['Pending Verification', 'Awaiting Payment', 'Payment Action Required'].includes(selectedOrder.status) ? (
                   <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-xl text-center text-xs font-semibold text-amber-800">
-                    Fulfillment Locked: ₹{selectedOrder.deliveryFee.toFixed(2)} Advance must be verified before processing or shipping.
+                    Fulfillment Locked: ₹{(selectedOrder.activePayment?.amountExpected ?? selectedOrder.deliveryFee).toFixed(2)} Advance must be verified before processing or shipping.
                   </div>
                 ) : selectedOrder.status === 'Confirmed' ? (
                   <div className="space-y-2">
                     <p className="text-xs text-slate-600">
-                      ₹{selectedOrder.deliveryFee.toFixed(2)} advance confirmed. Begin preparing parcel for packaging and shipping.
+                      ₹{(selectedOrder.advancePaid > 0 ? selectedOrder.advancePaid : (selectedOrder.activePayment?.amountExpected ?? selectedOrder.deliveryFee)).toFixed(2)} advance confirmed. Begin preparing parcel for packaging and shipping.
                     </p>
                     <button
                       type="button"
                       onClick={() => handleUpdateFulfillment('Processing')}
                       disabled={isPendingAction}
-                      className="w-full py-2 bg-[#2563EB] hover:bg-blue-700 text-white rounded-xl text-xs font-semibold transition-colors shadow-xs flex items-center justify-center gap-1.5 cursor-pointer"
+                      className="w-full min-h-[44px] py-2 bg-[#2563EB] hover:bg-blue-700 text-white rounded-xl text-xs font-semibold transition-colors shadow-xs flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
                     >
                       {isPendingAction ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Package className="w-3.5 h-3.5" />}
                       <span>Start Processing Order</span>
@@ -1095,19 +1184,30 @@ export default function AdminCodOrdersClient({
 
       {/* Modal: Confirm Doorstep COD Balance Settled */}
       {showCollectionModal && selectedOrder && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-2xl max-w-md w-full p-5 space-y-4 shadow-2xl border border-slate-100">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl max-w-md w-full p-5 sm:p-6 space-y-4 shadow-2xl border border-slate-100 max-h-[90vh] flex flex-col my-auto">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 shrink-0">
               <h3 className="text-sm font-bold text-slate-900">Confirm Doorstep Balance Received</h3>
               <button
                 type="button"
-                onClick={() => setShowCollectionModal(false)}
-                className="text-slate-400 hover:text-slate-600"
+                onClick={() => {
+                  setShowCollectionModal(false);
+                  setCollectionModalError(null);
+                }}
+                className="text-slate-400 hover:text-slate-600 p-1"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
-            <div className="space-y-3 text-xs">
+
+            {collectionModalError && (
+              <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl flex items-center gap-2 text-xs text-rose-800 animate-in fade-in duration-150 shrink-0">
+                <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                <span>{collectionModalError}</span>
+              </div>
+            )}
+
+            <div className="space-y-3 text-xs overflow-y-auto pr-1">
               <div className="p-3 rounded-xl bg-emerald-50 text-emerald-800 font-semibold flex items-center justify-between">
                 <span>Remaining Product Balance:</span>
                 <span className="text-sm font-bold">₹{selectedOrder.balanceDue.toFixed(2)}</span>
@@ -1135,21 +1235,35 @@ export default function AdminCodOrdersClient({
                 />
               </div>
             </div>
-            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+            <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-2 pt-3 border-t border-slate-100 shrink-0">
               <button
                 type="button"
-                onClick={() => setShowCollectionModal(false)}
-                className="px-3 py-1.5 text-xs text-slate-500 hover:text-slate-700"
+                onClick={() => {
+                  setShowCollectionModal(false);
+                  setCollectionModalError(null);
+                }}
+                disabled={isSavingCollection}
+                className="w-full sm:w-auto px-4 py-2 min-h-[44px] sm:min-h-[38px] text-xs text-slate-600 hover:text-slate-800 border border-slate-200 sm:border-transparent rounded-xl flex items-center justify-center cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 type="button"
                 onClick={handleConfirmCollection}
-                disabled={isPendingAction}
-                className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl shadow-xs disabled:opacity-50"
+                disabled={isSavingCollection}
+                className="w-full sm:w-auto px-4 py-2 min-h-[44px] sm:min-h-[38px] bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl shadow-xs disabled:opacity-50 flex items-center justify-center gap-1.5 cursor-pointer"
               >
-                {isPendingAction ? 'Saving...' : 'Confirm Balance Settled'}
+                {isSavingCollection ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>Saving...</span>
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    <span>Confirm Balance Settled</span>
+                  </>
+                )}
               </button>
             </div>
           </div>

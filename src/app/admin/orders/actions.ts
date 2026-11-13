@@ -72,6 +72,8 @@ export async function verifyPaymentAction(input: VerifyPaymentInput) {
       return { success: false, error: 'Confirmed received amount must be greater than zero.' };
     }
 
+    const roundedAmount = Math.round(input.confirmedAmountReceived * 100) / 100;
+
     const adminClient = createAdminClient();
 
     // 1. Authoritative pre-check of the payment record
@@ -145,7 +147,7 @@ export async function verifyPaymentAction(input: VerifyPaymentInput) {
 
     // Asset namespace security verification:
     // Strictly verify proof belongs to the exact payment attempt and order via regex (not just loose prefix)
-    const exactProofRegex = new RegExp(`^majisa-cosmetics/payment-proofs/${paymentRecord.order_id}/${paymentRecord.id}_\\d+$`);
+    const exactProofRegex = new RegExp(`^majisa-cosmetics/payment-proofs/${paymentRecord.order_id}/${paymentRecord.id}_\\d+(\\.[a-zA-Z0-9]+)?$`);
     const sampleProofRegex = /^majisa-cosmetics\/payment-proofs\/sample\/[a-zA-Z0-9_-]+$/;
 
     if (!exactProofRegex.test(proofId) && !sampleProofRegex.test(proofId)) {
@@ -172,12 +174,10 @@ export async function verifyPaymentAction(input: VerifyPaymentInput) {
       }
     }
 
-    // 2. Execute verification RPC via authenticated user context
-    const supabase = await createClient();
-
-    const { data: rpcResult, error: rpcError } = await supabase.rpc('verify_payment_admin', {
+    // 2. Execute verification RPC using authenticated admin identity context
+    const { data: rpcResult, error: rpcError } = await adminClient.rpc('verify_payment_admin', {
       p_payment_id: input.paymentId,
-      p_confirmed_amount_received: input.confirmedAmountReceived,
+      p_confirmed_amount_received: roundedAmount,
       p_admin_notes: input.adminNotes?.trim() || null,
       p_admin_id: user.id,
     });
@@ -232,6 +232,9 @@ export async function verifyPaymentAction(input: VerifyPaymentInput) {
       data: rpcResult,
     };
   } catch (err: unknown) {
+    if ((err as any)?.digest?.startsWith('NEXT_REDIRECT')) {
+      throw err;
+    }
     console.error('verifyPaymentAction exception:', err);
     return {
       success: false,
@@ -288,9 +291,28 @@ export async function rejectPaymentAction(input: RejectPaymentInput) {
       };
     }
 
-    const supabase = await createClient();
+    if (paymentRecord.verification_status === 'rejected') {
+      const orderId = paymentRecord.order_id;
+      if (orderId) {
+        revalidatePath('/admin');
+        revalidatePath('/admin/orders/online');
+        revalidatePath('/admin/orders/cod');
+        revalidatePath(`/admin/orders/${orderId}`);
+      }
 
-    const { data: rpcResult, error: rpcError } = await supabase.rpc('reject_payment_admin', {
+      return {
+        success: true,
+        alreadyRejected: true,
+        message: 'Payment attempt has already been rejected in the database.',
+        data: {
+          order_id: orderId,
+          payment_id: input.paymentId,
+          verification_status: 'rejected',
+        },
+      };
+    }
+
+    const { data: rpcResult, error: rpcError } = await adminClient.rpc('reject_payment_admin', {
       p_payment_id: input.paymentId,
       p_rejection_reason: input.rejectionReason.trim(),
       p_admin_notes: input.adminNotes?.trim() || null,
@@ -322,6 +344,9 @@ export async function rejectPaymentAction(input: RejectPaymentInput) {
       data: rpcResult,
     };
   } catch (err: unknown) {
+    if ((err as any)?.digest?.startsWith('NEXT_REDIRECT')) {
+      throw err;
+    }
     console.error('rejectPaymentAction exception:', err);
     return {
       success: false,
@@ -342,7 +367,7 @@ export async function rejectPaymentAction(input: RejectPaymentInput) {
  * - Inserts permanent audit record into public.order_collections.
  * - Sets payment_status = 'fully_paid', balance_amount_due = 0.00.
  *
- * Uses: confirm_cod_balance_collected_admin stored procedure.
+ * Uses: confirm_cod_balance_collected_admin stored procedure with idempotency safeguards.
  */
 export async function confirmCodCollectionAction(input: ConfirmCodCollectionInput) {
   try {
@@ -365,13 +390,75 @@ export async function confirmCodCollectionAction(input: ConfirmCodCollectionInpu
       return { success: false, error: 'Invalid payment collection method.' };
     }
 
-    const supabase = await createClient();
+    const adminClient = createAdminClient();
 
-    const { data: rpcResult, error: rpcError } = await supabase.rpc(
+    // 1. Authoritative pre-check of the parent order
+    const { data: orderRecord, error: orderFetchErr } = await adminClient
+      .from('orders')
+      .select('id, order_type, status, payment_status, balance_amount_due, cod_balance_collected, total_amount')
+      .eq('id', input.orderId)
+      .maybeSingle();
+
+    if (orderFetchErr || !orderRecord) {
+      return { success: false, error: 'Order not found in database.' };
+    }
+
+    if (orderRecord.order_type !== 'cod') {
+      return {
+        success: false,
+        error: 'Doorstep balance collection confirmation is only applicable to COD orders.',
+      };
+    }
+
+    // Idempotent recovery check: If order is already fully paid and balance is 0, return success
+    if (orderRecord.payment_status === 'fully_paid' && Number(orderRecord.balance_amount_due) <= 0) {
+      revalidatePath('/admin');
+      revalidatePath('/admin/orders/cod');
+      revalidatePath(`/admin/orders/${input.orderId}`);
+
+      return {
+        success: true,
+        alreadyCollected: true,
+        message: 'COD doorstep balance has already been collected and confirmed in the database.',
+        data: {
+          order_id: input.orderId,
+          payment_status: 'fully_paid',
+          cod_balance_collected: orderRecord.cod_balance_collected ?? input.confirmedCollectedAmount,
+          balance_amount_due: 0,
+        },
+      };
+    }
+
+    if (orderRecord.payment_status !== 'advance_paid') {
+      return {
+        success: false,
+        error: `Cannot collect remaining balance before delivery advance has been verified (current payment status: "${orderRecord.payment_status}").`,
+      };
+    }
+
+    if (!['Dispatched', 'Delivered'].includes(orderRecord.status)) {
+      return {
+        success: false,
+        error: `COD balance can only be collected for orders that are Dispatched or Delivered (current order status: "${orderRecord.status}").`,
+      };
+    }
+
+    const roundedCollected = Math.round(input.confirmedCollectedAmount * 100) / 100;
+    const roundedBalanceDue = Math.round(Number(orderRecord.balance_amount_due) * 100) / 100;
+
+    if (roundedCollected !== roundedBalanceDue) {
+      return {
+        success: false,
+        error: `Confirmed collected amount (₹${roundedCollected.toFixed(2)}) must exactly equal the outstanding balance (₹${roundedBalanceDue.toFixed(2)}).`,
+      };
+    }
+
+    // 2. Execute collection confirmation RPC via privileged admin context
+    const { data: rpcResult, error: rpcError } = await adminClient.rpc(
       'confirm_cod_balance_collected_admin',
       {
         p_order_id: input.orderId,
-        p_confirmed_collected_amount: input.confirmedCollectedAmount,
+        p_confirmed_collected_amount: roundedCollected,
         p_payment_method: method,
         p_transaction_reference: input.transactionReference?.trim() || null,
         p_admin_notes: input.adminNotes?.trim() || null,
@@ -380,6 +467,40 @@ export async function confirmCodCollectionAction(input: ConfirmCodCollectionInpu
     );
 
     if (rpcError || !rpcResult) {
+      const errMsg = rpcError?.message || '';
+
+      // Idempotent recovery guard: if RPC reported already collected or unique violation,
+      // verify database state before failing.
+      if (
+        errMsg.includes('already been collected') ||
+        errMsg.includes('idx_order_collections_unique_cod_doorstep') ||
+        errMsg.includes('current payment status: fully_paid')
+      ) {
+        const { data: confirmedOrder } = await adminClient
+          .from('orders')
+          .select('id, payment_status, balance_amount_due, cod_balance_collected')
+          .eq('id', input.orderId)
+          .maybeSingle();
+
+        if (confirmedOrder && confirmedOrder.payment_status === 'fully_paid') {
+          revalidatePath('/admin');
+          revalidatePath('/admin/orders/cod');
+          revalidatePath(`/admin/orders/${input.orderId}`);
+
+          return {
+            success: true,
+            alreadyCollected: true,
+            message: 'COD doorstep balance has already been collected and confirmed in the database.',
+            data: {
+              order_id: input.orderId,
+              payment_status: 'fully_paid',
+              cod_balance_collected: confirmedOrder.cod_balance_collected ?? roundedCollected,
+              balance_amount_due: 0,
+            },
+          };
+        }
+      }
+
       console.error('RPC confirm_cod_balance_collected_admin error:', rpcError);
       return {
         success: false,
@@ -396,6 +517,9 @@ export async function confirmCodCollectionAction(input: ConfirmCodCollectionInpu
       data: rpcResult,
     };
   } catch (err: unknown) {
+    if ((err as any)?.digest?.startsWith('NEXT_REDIRECT')) {
+      throw err;
+    }
     console.error('confirmCodCollectionAction exception:', err);
     return {
       success: false,
