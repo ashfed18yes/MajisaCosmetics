@@ -789,3 +789,77 @@ export async function deleteOrderAction(input: DeleteOrderInput) {
   }
 }
 
+export interface AdminNotificationData {
+  id: string;
+  orderNumber: string;
+  customerName: string;
+  totalAmount: number;
+  orderType: 'online' | 'cod';
+  createdAt: string;
+}
+
+/**
+ * Server Action: Load Recent Admin Notifications.
+ *
+ * Securely retrieves the most recent customer orders for the notification bell.
+ * Enforces admin authorization via requireAdmin().
+ * Sanitizes customer address snapshots to extract the display recipient name.
+ */
+export async function getRecentAdminNotificationsAction(): Promise<{
+  success: boolean;
+  notifications?: AdminNotificationData[];
+  error?: string;
+}> {
+  try {
+    await requireAdmin();
+    const adminClient = createAdminClient();
+
+    const { data: recentOrders, error } = await adminClient
+      .from('orders')
+      .select('id, order_number, order_type, total_amount, created_at, shipping_address_snapshot')
+      .order('created_at', { ascending: false })
+      .limit(20);
+
+    if (error) {
+      console.error('getRecentAdminNotificationsAction error:', error);
+      return { success: false, error: error.message };
+    }
+
+    const notifications: AdminNotificationData[] = (recentOrders || []).map((o) => {
+      let addr: Record<string, any> = {};
+      if (typeof o.shipping_address_snapshot === 'object' && o.shipping_address_snapshot !== null) {
+        addr = o.shipping_address_snapshot as Record<string, any>;
+      } else if (typeof o.shipping_address_snapshot === 'string') {
+        try {
+          addr = JSON.parse(o.shipping_address_snapshot);
+        } catch {
+          addr = {};
+        }
+      }
+
+      const customerName = addr.recipient_name || addr.fullName || addr.name || 'Customer';
+
+      return {
+        id: o.id,
+        orderNumber: o.order_number || o.id.slice(0, 8),
+        customerName,
+        totalAmount: Number(o.total_amount) || 0,
+        orderType: (o.order_type === 'cod' ? 'cod' : 'online') as 'online' | 'cod',
+        createdAt: o.created_at,
+      };
+    });
+
+    return { success: true, notifications };
+  } catch (err: unknown) {
+    if ((err as any)?.digest?.startsWith('NEXT_REDIRECT')) {
+      throw err;
+    }
+    console.error('getRecentAdminNotificationsAction exception:', err);
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : 'Unauthorized or error loading notifications',
+    };
+  }
+}
+
+

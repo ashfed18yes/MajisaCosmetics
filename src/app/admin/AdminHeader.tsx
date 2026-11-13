@@ -4,7 +4,6 @@ import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import {
   Search,
-  Bell,
   ChevronDown,
   Menu,
   LogOut,
@@ -15,6 +14,7 @@ import {
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import AdminNotificationBell from './AdminNotificationBell';
 
 export interface AdminHeaderProps {
   user: {
@@ -96,14 +96,8 @@ export default function AdminHeader({ user, onMobileToggle }: AdminHeaderProps) 
           <ExternalLink className="w-3 h-3 text-slate-400 opacity-70" />
         </Link>
 
-        {/* Notification Bell with Badge 3 (matching Image 2) */}
-        <div className="relative cursor-pointer p-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-50 rounded-xl transition-colors">
-          <Bell className="w-5 h-5 text-slate-600" />
-          {/* Amber badge with "3" */}
-          <span className="absolute top-1 right-1 w-4 h-4 bg-[#F59E0B] text-white text-[10px] font-bold rounded-full flex items-center justify-center ring-2 ring-white">
-            3
-          </span>
-        </div>
+        {/* Real-time Admin Notification Bell */}
+        <AdminNotificationBell userId={user.id} />
 
         {/* User Profile Pill */}
         <div className="relative" ref={dropdownRef}>
