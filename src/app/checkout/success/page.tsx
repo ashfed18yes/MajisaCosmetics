@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
-import { createClient } from '@/lib/supabase/server';
+import { createClient, getCachedUser } from '@/lib/supabase/server';
 import CheckoutSuccessClient from './CheckoutSuccessClient';
 
 export const dynamic = 'force-dynamic';
@@ -20,13 +20,12 @@ interface SuccessPageProps {
 export default async function CheckoutSuccessPage({
   searchParams,
 }: SuccessPageProps) {
-  const supabase = await createClient();
   const [authRes, params] = await Promise.all([
-    supabase.auth.getUser(),
+    getCachedUser(),
     searchParams,
   ]);
 
-  const user = authRes.data?.user;
+  const user = authRes.user;
   const { order_id: orderId, order_number: orderNumber } = params;
 
   if (!user || authRes.error) {
@@ -36,6 +35,8 @@ export default async function CheckoutSuccessPage({
   if (!orderId && !orderNumber) {
     redirect('/account');
   }
+
+  const supabase = await createClient();
 
   let query = supabase
     .from('orders')

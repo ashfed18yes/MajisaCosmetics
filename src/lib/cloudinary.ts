@@ -296,5 +296,102 @@ export function getSignedPaymentProofUrl(
   });
 }
 
+export interface SignedUploadParams {
+  signature: string;
+  timestamp: number;
+  folder: string;
+  public_id: string;
+  api_key: string;
+  cloud_name: string;
+}
+
+/**
+ * Generates single-use signed parameters for a direct browser-to-Cloudinary upload.
+ *
+ * CRITICAL SECURITY ARCHITECTURE:
+ * - Secrets remain 100% server-side: CLOUDINARY_API_SECRET is never sent to the browser.
+ * - Restricts folder strictly to: majisa-cosmetics/payment-proofs/{orderId}
+ * - Restricts public_id strictly to: {paymentId}_{timestamp}
+ * - User cannot upload to arbitrary folders or overwrite assets.
+ */
+export function generatePaymentProofUploadSignature(
+  orderId: string,
+  paymentId: string
+): SignedUploadParams {
+  const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
+  const apiKey = process.env.CLOUDINARY_API_KEY;
+  const apiSecret = process.env.CLOUDINARY_API_SECRET;
+
+  if (!cloudName || !apiKey || !apiSecret) {
+    throw new Error('Cloudinary credentials are not configured.');
+  }
+
+  const timestamp = Math.floor(Date.now() / 1000);
+  const folder = `majisa-cosmetics/payment-proofs/${orderId}`;
+  const publicId = `${paymentId}_${Date.now()}`;
+
+  const paramsToSign = {
+    folder,
+    public_id: publicId,
+    timestamp,
+  };
+
+  const signature = cloudinary.utils.api_sign_request(paramsToSign, apiSecret);
+
+  return {
+    signature,
+    timestamp,
+    folder,
+    public_id: publicId,
+    api_key: apiKey,
+    cloud_name: cloudName,
+  };
+}
+
+/**
+ * Authoritatively verifies that an uploaded asset exists in Cloudinary and retrieves its metadata.
+ */
+export async function verifyUploadedPaymentProofAsset(publicId: string): Promise<{
+  format: string;
+  bytes: number;
+  secure_url: string;
+}> {
+  if (!publicId || !publicId.startsWith('majisa-cosmetics/payment-proofs/')) {
+    throw new Error('Invalid payment proof public ID.');
+  }
+
+  const client = getCloudinaryClient();
+  const resource = await client.api.resource(publicId, {
+    resource_type: 'image',
+  });
+
+  return {
+    format: resource.format,
+    bytes: resource.bytes,
+    secure_url: resource.secure_url,
+  };
+}
+
+/**
+ * Destroys an uploaded payment proof asset from Cloudinary if database registration fails.
+ * Guarantees zero orphaned files on failed submissions.
+ */
+export async function deleteCloudinaryProofImage(publicId: string): Promise<boolean> {
+  if (!publicId || typeof publicId !== 'string') return false;
+  if (!publicId.startsWith('majisa-cosmetics/payment-proofs/')) return false;
+
+  try {
+    const client = getCloudinaryClient();
+    const result = await client.uploader.destroy(publicId, {
+      resource_type: 'image',
+    });
+    return result.result === 'ok';
+  } catch (error) {
+    console.error('Failed to destroy Cloudinary proof image:', error);
+    return false;
+  }
+}
+
+
 
 

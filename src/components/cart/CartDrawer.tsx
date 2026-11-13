@@ -42,6 +42,8 @@ export default function CartDrawer() {
   useEffect(() => {
     if (isCartOpen) {
       document.body.style.overflow = 'hidden';
+      // Pre-warm checkout route so click-to-navigation is instantaneous
+      router.prefetch('/checkout');
     } else {
       document.body.style.overflow = 'unset';
       setIsMobileSummaryExpanded(false);

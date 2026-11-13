@@ -1,8 +1,13 @@
 'use server';
 
-import { createClient } from '@/lib/supabase/server';
+import { createClient, getCachedUser } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { uploadPaymentProofImage, deleteCloudinaryProductImage } from '@/lib/cloudinary';
+import {
+  uploadPaymentProofImage,
+  deleteCloudinaryProductImage,
+  generatePaymentProofUploadSignature,
+  deleteCloudinaryProofImage,
+} from '@/lib/cloudinary';
 import { validateUtrFormat } from '@/lib/payments/upi';
 
 export interface CheckoutItemInput {
@@ -101,19 +106,20 @@ export async function getUpiPaymentConfig(): Promise<UpiConfigResult> {
  */
 export async function createOrderAction(input: CreateOrderInput) {
   // 1. Authenticate user and verify UPI configuration in parallel
-  const supabase = await createClient();
   const [authRes, upiConfig] = await Promise.all([
-    supabase.auth.getUser(),
+    getCachedUser(),
     getUpiPaymentConfig(),
   ]);
 
-  const user = authRes.data?.user;
+  const user = authRes.user;
   if (!user || authRes.error) {
     return {
       success: false,
       error: 'You must be signed in to complete checkout.',
     };
   }
+
+  const supabase = await createClient();
 
   // 2. Strict UPI check: Both Online and COD require UPI payment
   if (!upiConfig.isAvailable) {
@@ -279,8 +285,194 @@ export async function createOrderAction(input: CreateOrderInput) {
   };
 }
 
+export interface GenerateUploadSignatureInput {
+  orderId: string;
+  paymentId: string;
+}
+
 /**
- * Server Action: Uploads screenshot to Cloudinary and registers payment proof in Supabase.
+ * Server Action: Authoritatively validates ownership and generates single-use signed parameters
+ * for direct, high-speed browser-to-Cloudinary payment proof upload.
+ *
+ * Security Enforcement:
+ * 1. Customer must be authenticated (getCachedUser).
+ * 2. Order must belong to authenticated user (order.user_id = user.id).
+ * 3. Payment attempt must belong to order and be in 'awaiting_submission' state.
+ * 4. Signature strictly restricts target folder and custom public ID.
+ * 5. Cloudinary API Secret NEVER leaves server.
+ */
+export async function generatePaymentProofUploadSignatureAction(
+  input: GenerateUploadSignatureInput
+) {
+  const { user, error: authError } = await getCachedUser();
+  if (!user || authError) {
+    return { success: false, error: 'You must be signed in to submit payment proof.' };
+  }
+
+  const { orderId, paymentId } = input;
+  if (!orderId || !paymentId) {
+    return { success: false, error: 'Missing order or payment attempt reference.' };
+  }
+
+  const supabase = await createClient();
+
+  // Validate order ownership and active payment attempt in parallel
+  const [{ data: order, error: orderErr }, { data: payment, error: payErr }] =
+    await Promise.all([
+      supabase
+        .from('orders')
+        .select('id, user_id, status')
+        .eq('id', orderId)
+        .maybeSingle(),
+      supabase
+        .from('payments')
+        .select('id, order_id, verification_status')
+        .eq('id', paymentId)
+        .maybeSingle(),
+    ]);
+
+  if (orderErr || !order || order.user_id !== user.id) {
+    return { success: false, error: 'Order not found or unauthorized.' };
+  }
+
+  if (payErr || !payment || payment.order_id !== orderId) {
+    return { success: false, error: 'Payment attempt record not found.' };
+  }
+
+  if (payment.verification_status !== 'awaiting_submission') {
+    return {
+      success: false,
+      error: `Payment attempt is not awaiting submission (current: ${payment.verification_status}).`,
+    };
+  }
+
+  try {
+    const signedParams = generatePaymentProofUploadSignature(orderId, paymentId);
+    return {
+      success: true,
+      data: signedParams,
+    };
+  } catch (err: unknown) {
+    console.error('Error generating upload signature:', err);
+    return {
+      success: false,
+      error: 'Failed to initialize secure upload signature.',
+    };
+  }
+}
+
+export interface DirectProofSubmissionInput {
+  orderId: string;
+  paymentId: string;
+  utrReference: string;
+  amountSubmitted: number;
+  proofPublicId: string;
+  proofFormat: string;
+  proofSizeBytes: number;
+}
+
+/**
+ * Server Action: Registers directly uploaded Cloudinary payment proof with Supabase RPC.
+ *
+ * Security & Ownership Enforcement:
+ * 1. Requires authenticated session (getCachedUser).
+ * 2. Strictly validates that proofPublicId matches ^majisa-cosmetics/payment-proofs/{orderId}/{paymentId}_\\d+$
+ * 3. Enforces UTR format (8 to 22 alphanumeric).
+ * 4. Verifies size <= 5 MB and supported format (jpg, jpeg, png, webp).
+ * 5. Locks order then payment via atomic submit_payment_proof RPC.
+ * 6. Orphan Cleanup: If DB RPC fails, deletes uploaded asset from Cloudinary immediately.
+ */
+export async function submitDirectPaymentProofAction(input: DirectProofSubmissionInput) {
+  const { user, error: authError } = await getCachedUser();
+  if (!user || authError) {
+    return { success: false, error: 'You must be signed in to submit payment proof.' };
+  }
+
+  const {
+    orderId,
+    paymentId,
+    utrReference,
+    amountSubmitted,
+    proofPublicId,
+    proofFormat,
+    proofSizeBytes,
+  } = input;
+
+  if (!orderId || !paymentId) {
+    return { success: false, error: 'Missing order or payment attempt reference.' };
+  }
+
+  const utrCheck = validateUtrFormat(utrReference);
+  if (!utrCheck.isValid) {
+    return { success: false, error: utrCheck.error || 'Invalid UTR reference number.' };
+  }
+
+  if (isNaN(amountSubmitted) || amountSubmitted <= 0) {
+    return { success: false, error: 'Invalid submitted payment amount.' };
+  }
+
+  // Structural namespace binding check
+  const expectedNamespaceRegex = new RegExp(
+    `^majisa-cosmetics/payment-proofs/${orderId}/${paymentId}_\\d+$`
+  );
+  if (!expectedNamespaceRegex.test(proofPublicId)) {
+    return {
+      success: false,
+      error:
+        'Security violation: Payment proof asset is not structurally bound to this order and payment attempt.',
+    };
+  }
+
+  const sanitizedFormat = (proofFormat || '').toLowerCase().trim();
+  if (!['jpg', 'jpeg', 'png', 'webp'].includes(sanitizedFormat)) {
+    return {
+      success: false,
+      error: 'Unsupported proof file format. Allowed: jpg, jpeg, png, webp.',
+    };
+  }
+
+  if (proofSizeBytes <= 0 || proofSizeBytes > 5 * 1024 * 1024) {
+    return {
+      success: false,
+      error: 'Payment screenshot file size must be between 1 byte and 5 MB.',
+    };
+  }
+
+  const supabase = await createClient();
+
+  // Call Supabase RPC submit_payment_proof
+  const { data: rpcResult, error: rpcError } = await supabase.rpc(
+    'submit_payment_proof',
+    {
+      p_order_id: orderId,
+      p_payment_id: paymentId,
+      p_utr_reference: utrCheck.sanitized,
+      p_proof_public_id: proofPublicId,
+      p_proof_file_format: sanitizedFormat,
+      p_proof_file_size_bytes: proofSizeBytes,
+      p_amount_submitted: amountSubmitted,
+    }
+  );
+
+  if (rpcError || !rpcResult) {
+    console.error('RPC submit_payment_proof error in direct upload:', rpcError);
+    // Cleanup asset on Cloudinary so no orphaned files remain
+    await deleteCloudinaryProofImage(proofPublicId).catch(() => {});
+    return {
+      success: false,
+      error:
+        rpcError?.message || 'Failed to register payment proof with order.',
+    };
+  }
+
+  return {
+    success: true,
+    data: rpcResult,
+  };
+}
+
+/**
+ * Server Action: Uploads screenshot to Cloudinary and registers payment proof in Supabase (Fallback Path).
  *
  * Security & Validation Rules:
  * 1. Requires authenticated session.
@@ -341,7 +533,7 @@ export async function submitPaymentProofAction(formData: FormData) {
     // PERFORMANCE OPTIMIZATION: Concurrently execute server authentication and Cloudinary
     // proof upload in parallel, saving 1.2 to 1.5 seconds of sequential blocking latency.
     const [authRes, uploadResult] = await Promise.all([
-      supabase.auth.getUser(),
+      getCachedUser(),
       uploadPaymentProofImage({
         buffer,
         orderId,
@@ -349,7 +541,7 @@ export async function submitPaymentProofAction(formData: FormData) {
       }),
     ]);
 
-    const user = authRes.data?.user;
+    const user = authRes.user;
     if (!user || authRes.error) {
       // Security cleanup: destroy uploaded asset if caller is unauthenticated
       if (uploadResult?.public_id) {

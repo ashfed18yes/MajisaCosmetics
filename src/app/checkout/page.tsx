@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
-import { createClient } from '@/lib/supabase/server';
+import { createClient, getCachedUser } from '@/lib/supabase/server';
 import { getUpiPaymentConfig } from './actions';
 import CheckoutClient from './CheckoutClient';
 import type { CustomerAddress } from '@/app/account/AccountClient';
@@ -13,15 +13,13 @@ export const metadata = {
 };
 
 export default async function CheckoutPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser();
+  const { user, error: authError } = await getCachedUser();
 
   if (!user || authError) {
     redirect('/sign-in?redirectTo=/checkout');
   }
+
+  const supabase = await createClient();
 
   // Parallelize independent queries: profile, saved addresses, delivery setting, and UPI configuration
   const [profileRes, addressesRes, deliveryRes, upiConfig] = await Promise.all([

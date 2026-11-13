@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
-import { createClient } from '@/lib/supabase/server';
+import { createClient, getCachedUser } from '@/lib/supabase/server';
 import AccountClient, {
   type CustomerData,
   type CustomerAddress,
@@ -7,15 +7,13 @@ import AccountClient, {
 } from './AccountClient';
 
 export default async function AccountPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser();
+  const { user, error: authError } = await getCachedUser();
 
   if (!user || authError) {
     redirect('/sign-in?redirectTo=/account');
   }
+
+  const supabase = await createClient();
 
   // Parallelize customer profile, saved addresses, and order history queries
   const [
@@ -59,7 +57,8 @@ export default async function AccountPage() {
         )
       `)
       .eq('user_id', user.id)
-      .order('created_at', { ascending: false }),
+      .order('created_at', { ascending: false })
+      .limit(25),
   ]);
 
   const fullName =

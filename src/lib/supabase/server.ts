@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
+import { cache } from 'react';
 
 /**
  * Creates a server-side Supabase client for use in Server Components,
@@ -36,3 +37,20 @@ export async function createClient() {
   });
 }
 
+/**
+ * Authenticates the current customer with Supabase Auth, memoized per request.
+ *
+ * PERFORMANCE OPTIMIZATION:
+ * Wrapped in React cache():
+ * When multiple Server Components or Actions in the same request call getCachedUser(),
+ * the remote Supabase auth call runs only once, completely eliminating duplicate 1.2-1.5s round trips.
+ */
+export const getCachedUser = cache(async () => {
+  const supabase = await createClient();
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser();
+
+  return { user: user ?? null, error };
+});

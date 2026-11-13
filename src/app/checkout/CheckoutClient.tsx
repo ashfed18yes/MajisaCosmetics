@@ -36,6 +36,8 @@ import { compressPaymentProof } from '@/lib/payments/imageCompression';
 import {
   createOrderAction,
   submitPaymentProofAction,
+  generatePaymentProofUploadSignatureAction,
+  submitDirectPaymentProofAction,
   type UpiConfigResult,
   type CheckoutItemInput,
 } from './actions';
@@ -422,6 +424,13 @@ export default function CheckoutClient({
 
       // Clear the cart context now that the order is recorded in the database
       clearCart();
+
+      // Speculatively prefetch order confirmation page for instant redirect upon verification
+      router.prefetch(
+        `/checkout/success?order_number=${encodeURIComponent(
+          orderData.order_number
+        )}&order_id=${encodeURIComponent(orderData.order_id)}`
+      );
     } catch (err: unknown) {
       console.error('Order creation error:', err);
       const msg = err instanceof Error ? err.message : 'An unexpected error occurred.';
@@ -452,24 +461,123 @@ export default function CheckoutClient({
     }
 
     setIsSubmittingProof(true);
-    setSubmittingStepText('Uploading payment screenshot...');
+    setSubmittingStepText('Preparing secure upload...');
 
     try {
-      const formData = new FormData();
-      formData.append('order_id', activeOrder.orderId);
-      formData.append('payment_id', activeOrder.paymentId);
-      formData.append('utr_reference', utrCheck.sanitized);
-      formData.append('amount_submitted', activeOrder.amountExpected.toString());
-      formData.append('proof_file', proofFile);
+      let directUploadSuccess = false;
 
-      setSubmittingStepText('Securing payment record...');
-      const res = await submitPaymentProofAction(formData);
+      // 1. High-Speed Direct Cloudinary Upload via Server-Signed Single-Use Signature
+      try {
+        const sigRes = await generatePaymentProofUploadSignatureAction({
+          orderId: activeOrder.orderId,
+          paymentId: activeOrder.paymentId,
+        });
 
-      if (!res.success) {
-        setProofSubmitError(res.error || 'Failed to submit payment proof.');
-        setIsSubmittingProof(false);
-        setSubmittingStepText(null);
-        return;
+        if (sigRes.success && sigRes.data) {
+          const sig = sigRes.data;
+          setSubmittingStepText('Uploading payment screenshot (0%)...');
+
+          const cloudRes = await new Promise<{
+            public_id: string;
+            format: string;
+            bytes: number;
+          }>((resolve, reject) => {
+            const xhr = new XMLHttpRequest();
+            xhr.open(
+              'POST',
+              `https://api.cloudinary.com/v1_1/${sig.cloud_name}/image/upload`
+            );
+
+            xhr.upload.onprogress = (event) => {
+              if (event.lengthComputable && event.total > 0) {
+                const percent = Math.min(
+                  99,
+                  Math.round((event.loaded / event.total) * 100)
+                );
+                setSubmittingStepText(
+                  `Uploading payment screenshot (${percent}%)...`
+                );
+              }
+            };
+
+            xhr.onload = () => {
+              if (xhr.status >= 200 && xhr.status < 300) {
+                try {
+                  const parsed = JSON.parse(xhr.responseText);
+                  resolve({
+                    public_id: parsed.public_id,
+                    format: parsed.format,
+                    bytes: parsed.bytes,
+                  });
+                } catch {
+                  reject(new Error('Invalid Cloudinary upload response.'));
+                }
+              } else {
+                reject(new Error(`Upload failed with status ${xhr.status}`));
+              }
+            };
+
+            xhr.onerror = () =>
+              reject(new Error('Network error uploading screenshot.'));
+
+            const cfd = new FormData();
+            cfd.append('file', proofFile);
+            cfd.append('api_key', sig.api_key);
+            cfd.append('timestamp', sig.timestamp.toString());
+            cfd.append('signature', sig.signature);
+            cfd.append('folder', sig.folder);
+            cfd.append('public_id', sig.public_id);
+            xhr.send(cfd);
+          });
+
+          setSubmittingStepText('Securing payment record...');
+
+          const confirmRes = await submitDirectPaymentProofAction({
+            orderId: activeOrder.orderId,
+            paymentId: activeOrder.paymentId,
+            utrReference: utrCheck.sanitized,
+            amountSubmitted: activeOrder.amountExpected,
+            proofPublicId: cloudRes.public_id,
+            proofFormat: cloudRes.format,
+            proofSizeBytes: cloudRes.bytes,
+          });
+
+          if (!confirmRes.success) {
+            setProofSubmitError(
+              confirmRes.error || 'Failed to register payment proof.'
+            );
+            setIsSubmittingProof(false);
+            setSubmittingStepText(null);
+            return;
+          }
+
+          directUploadSuccess = true;
+        }
+      } catch (directErr) {
+        console.warn(
+          'Direct upload encountered an issue, transitioning to server upload fallback:',
+          directErr
+        );
+      }
+
+      // 2. Reliable Fallback: Server-side proxy upload if direct upload was blocked or failed
+      if (!directUploadSuccess) {
+        setSubmittingStepText('Securing payment record...');
+        const formData = new FormData();
+        formData.append('order_id', activeOrder.orderId);
+        formData.append('payment_id', activeOrder.paymentId);
+        formData.append('utr_reference', utrCheck.sanitized);
+        formData.append('amount_submitted', activeOrder.amountExpected.toString());
+        formData.append('proof_file', proofFile);
+
+        const res = await submitPaymentProofAction(formData);
+
+        if (!res.success) {
+          setProofSubmitError(res.error || 'Failed to submit payment proof.');
+          setIsSubmittingProof(false);
+          setSubmittingStepText(null);
+          return;
+        }
       }
 
       setSubmittingStepText('Order confirmed! Redirecting...');
@@ -481,7 +589,8 @@ export default function CheckoutClient({
       );
     } catch (err: unknown) {
       console.error('Payment proof submission error:', err);
-      const msg = err instanceof Error ? err.message : 'Failed to submit payment proof.';
+      const msg =
+        err instanceof Error ? err.message : 'Failed to submit payment proof.';
       setProofSubmitError(msg);
       setIsSubmittingProof(false);
       setSubmittingStepText(null);

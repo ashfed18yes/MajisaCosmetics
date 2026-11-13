@@ -2,13 +2,56 @@ import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
 /**
+ * Parses JWT expiration timestamp from incoming Supabase auth cookie payload.
+ * Runs in O(1) time without external network calls.
+ */
+function getAuthTokenExp(cookies: Array<{ name: string; value: string }>): number | null {
+  for (const c of cookies) {
+    if (
+      c.name.startsWith('sb-') &&
+      (c.name.includes('-auth-token') || c.name.includes('access-token'))
+    ) {
+      let val = c.value;
+      if (val.startsWith('base64-')) {
+        try {
+          val = Buffer.from(val.slice(7), 'base64url').toString('utf8');
+        } catch {}
+      }
+      try {
+        const parsed = JSON.parse(val);
+        const token =
+          parsed.access_token ||
+          (Array.isArray(parsed) && typeof parsed[0] === 'string' ? parsed[0] : null);
+        if (token && typeof token === 'string') {
+          const parts = token.split('.');
+          if (parts.length === 3) {
+            const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8'));
+            return typeof payload.exp === 'number' ? payload.exp : null;
+          }
+        }
+      } catch {
+        const parts = val.split('.');
+        if (parts.length === 3) {
+          try {
+            const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8'));
+            return typeof payload.exp === 'number' ? payload.exp : null;
+          } catch {}
+        }
+      }
+    }
+  }
+  return null;
+}
+
+/**
  * Updates the user session and refreshes auth tokens on incoming requests.
  * Uses `@supabase/ssr` to read and set cookies on both request and response.
  *
- * CRITICAL SECURITY & STABILITY RULES:
+ * CRITICAL PERFORMANCE & SECURITY RULES:
  * - Uses only public client credentials (never SUPABASE_SECRET_KEY).
- * - Always calls `supabase.auth.getUser()` to validate and refresh the JWT.
- * - Protects authenticated customer routes (e.g. `/account`).
+ * - Fast-paths Next.js prefetch requests (0ms delay).
+ * - Fast-paths unexpired customer sessions without blocking on remote auth calls.
+ * - Protects authenticated customer routes (e.g. `/account`) and admin routes.
  * - Preserves public routes and static assets.
  */
 export async function updateSession(request: NextRequest) {
@@ -27,8 +70,18 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(callbackUrl);
   }
 
-  // FAST PATH 1: Inspect incoming cookies for Supabase authentication tokens.
-  // Supabase SSR tokens are keyed with 'sb-<project-ref>-auth-token' or similar prefixes.
+  // FAST PATH 1: Next.js router prefetch requests
+  // Prefetches are speculative background requests sent on link hover/in-viewport.
+  // They only require static or RSC payloads and must NEVER execute remote auth round-trips.
+  const isPrefetch =
+    request.headers.get('next-router-prefetch') === '1' ||
+    request.headers.get('purpose') === 'prefetch';
+
+  if (isPrefetch) {
+    return supabaseResponse;
+  }
+
+  // FAST PATH 2: Inspect incoming cookies for Supabase authentication tokens.
   const allCookies = request.cookies.getAll();
   const hasAuthCookie = allCookies.some(
     (c) =>
@@ -40,10 +93,10 @@ export async function updateSession(request: NextRequest) {
   const isAdminRoute = pathname.startsWith('/admin');
   const isAuthRoute = pathname === '/sign-in' || pathname === '/sign-up';
 
-  // FAST PATH 2: If there are NO auth cookies whatsoever:
-  // - Unauthenticated visitor visiting /account or /admin -> instant redirect to sign-in (0ms DB delay)
-  // - Public storefront pages (/, /collections, /brands, /products, etc.) -> pass through immediately (0ms DB delay)
-  // - Auth pages (/sign-in, /sign-up) -> pass through immediately without redundant validation
+  // FAST PATH 3: If there are NO auth cookies whatsoever:
+  // - Unauthenticated visitor visiting /account or /admin -> instant redirect to sign-in (0ms delay)
+  // - Public storefront pages -> pass through immediately (0ms delay)
+  // - Auth pages (/sign-in, /sign-up) -> pass through immediately
   if (!hasAuthCookie) {
     if (isAccountRoute || isAdminRoute) {
       const redirectUrl = request.nextUrl.clone();
@@ -54,13 +107,19 @@ export async function updateSession(request: NextRequest) {
     return supabaseResponse;
   }
 
-  // FAST PATH 3: If it's a Next.js prefetch request, do not execute a remote auth network call.
-  // Prefetches only need the static or cached RSC payload; they do not mutate or refresh auth cookies.
-  const isPrefetch =
-    request.headers.get('next-router-prefetch') === '1' ||
-    request.headers.get('purpose') === 'prefetch';
+  // FAST PATH 4: Inspect local token expiration
+  // If the JWT access token is valid and unexpired with > 60 seconds of validity remaining,
+  // do not block middleware on a remote Supabase auth network round-trip.
+  // Protected server components (/account, /admin) authoritatively verify user identity.
+  const now = Math.floor(Date.now() / 1000);
+  const tokenExp = getAuthTokenExp(allCookies);
 
-  if (isPrefetch && !isAccountRoute && !isAdminRoute && !isAuthRoute) {
+  if (tokenExp && tokenExp > now + 60) {
+    if (isAuthRoute) {
+      const redirectUrl = request.nextUrl.clone();
+      redirectUrl.pathname = '/account';
+      return NextResponse.redirect(redirectUrl);
+    }
     return supabaseResponse;
   }
 
@@ -111,7 +170,6 @@ export async function updateSession(request: NextRequest) {
     redirectUrl.searchParams.set('redirectTo', pathname);
 
     const redirectResponse = NextResponse.redirect(redirectUrl);
-    // Forward any session cookie changes to redirect response
     supabaseResponse.cookies.getAll().forEach((cookie) => {
       redirectResponse.cookies.set(cookie);
     });
@@ -128,4 +186,3 @@ export async function updateSession(request: NextRequest) {
 
   return supabaseResponse;
 }
-

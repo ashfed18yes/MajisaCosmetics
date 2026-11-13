@@ -1,6 +1,6 @@
 import 'server-only';
 import { cache } from 'react';
-import { createClient } from '@/lib/supabase/server';
+import { createClient, getCachedUser } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 
 export interface AdminUser {
@@ -17,19 +17,17 @@ export interface AdminUser {
  * When layout.tsx and page.tsx both call requireAdmin(), the second call returns
  * instantly from memory with zero duplicate database round trips!
  *
+ * Uses getCachedUser() to eliminate redundant remote auth requests across the request lifecycle.
  * Parallelizes user_roles and profiles queries for optimal performance.
  */
 export const requireAdmin = cache(async (): Promise<{ user: AdminUser }> => {
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser();
+  const { user, error: authError } = await getCachedUser();
 
   if (authError || !user) {
     redirect('/sign-in?redirectTo=/admin/products');
   }
+
+  const supabase = await createClient();
 
   // Parallelize role check and profile lookup
   const [roleRes, profileRes] = await Promise.all([
@@ -66,13 +64,11 @@ export const requireAdmin = cache(async (): Promise<{ user: AdminUser }> => {
  */
 export async function checkIsAdmin(): Promise<boolean> {
   try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const { user } = await getCachedUser();
 
     if (!user) return false;
 
+    const supabase = await createClient();
     const { data: roleRow } = await supabase
       .from('user_roles')
       .select('role')
@@ -85,4 +81,5 @@ export async function checkIsAdmin(): Promise<boolean> {
     return false;
   }
 }
+
 
