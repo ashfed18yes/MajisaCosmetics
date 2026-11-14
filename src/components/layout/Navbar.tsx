@@ -36,6 +36,18 @@ export default function Navbar() {
     try {
       const supabase = createClient();
 
+      // Dynamically fetch and display active categories
+      supabase
+        .from('categories')
+        .select('id, name, slug')
+        .eq('is_active', true)
+        .order('display_order', { ascending: true })
+        .then(({ data }) => {
+          if (data && data.length > 0) {
+            setCategories(data);
+          }
+        });
+
       // Read locally stored session immediately without blocking on a network round-trip
       supabase.auth.getSession().then(({ data }) => {
         if (data?.session?.user) {

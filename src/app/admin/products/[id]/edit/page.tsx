@@ -41,7 +41,7 @@ export default async function EditProductPage({ params }: EditProductPageProps) 
       .eq('product_id', id)
       .order('display_order', { ascending: true }),
     adminClient.from('brands').select('id, name').order('name', { ascending: true }),
-    adminClient.from('categories').select('id, name').order('name', { ascending: true }),
+    adminClient.from('categories').select('id, name').eq('is_active', true).order('name', { ascending: true }),
   ]);
 
   if (productError || !product) {

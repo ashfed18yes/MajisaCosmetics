@@ -25,7 +25,7 @@ export const CATEGORIES: Category[] = [
     name: 'Face Makeup',
     tagline: 'Second-Skin Foundations & Luminous Blushes',
     description: 'Create an effortlessly flawless complexion with breathable formulas crafted to enhance your natural beauty.',
-    image: 'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?q=80&w=1000&auto=format&fit=crop',
+    image: 'https://images.unsplash.com/photo-1631729371254-42c2892f0e6e?q=80&w=1000&auto=format&fit=crop',
     featuredInNav: true,
   },
   {

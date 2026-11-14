@@ -15,10 +15,10 @@ export default async function NewProductPage() {
   await requireAdmin();
   const adminClient = createAdminClient();
 
-  // Fetch available brands and categories
+  // Fetch available brands and active categories
   const [{ data: brands }, { data: categories }] = await Promise.all([
     adminClient.from('brands').select('id, name').order('name', { ascending: true }),
-    adminClient.from('categories').select('id, name').order('name', { ascending: true }),
+    adminClient.from('categories').select('id, name').eq('is_active', true).order('name', { ascending: true }),
   ]);
 
   return (

@@ -30,7 +30,7 @@ export default function ProductGrid({
             key={i}
             className="animate-pulse bg-white rounded-[14px] sm:rounded-[16px] md:rounded-[18px] p-2 sm:p-2.5 md:p-3 border border-[#D4E5E3] shadow-card space-y-2 sm:space-y-2.5"
           >
-            <div className="aspect-square bg-[#F0F9F8] rounded-[10px] sm:rounded-[12px]" />
+            <div className="aspect-[4/5] bg-[#F9FAF9] rounded-[10px] sm:rounded-[12px]" />
             <div className="h-2.5 bg-[#DDF3F2] rounded-full w-1/3" />
             <div className="h-3 sm:h-3.5 bg-[#DDF3F2] rounded-full w-4/5" />
             <div className="h-3.5 sm:h-4 bg-[#DDF3F2] rounded-full w-1/4" />

@@ -34,10 +34,10 @@ export default function ProductCard({ product, priority = false }: ProductCardPr
 
   return (
     <div className="group relative flex flex-col bg-white rounded-[14px] sm:rounded-[16px] md:rounded-[18px] p-2 sm:p-2.5 md:p-3 shadow-card hover:shadow-hover border border-[#D4E5E3] hover:border-[#128F92]/40 transition-all duration-300 h-full">
-      {/* 1. Compact Product Image: Proportional Square Aspect Ratio */}
+      {/* 1. Refined Product Image: Proportional 4:5 Portrait Aspect Ratio */}
       <Link
         href={`/products/${product.slug}`}
-        className="relative block aspect-square w-full overflow-hidden rounded-[10px] sm:rounded-[12px] bg-[#F0F9F8] p-1.5 sm:p-2 shrink-0"
+        className="relative block aspect-[4/5] w-full overflow-hidden rounded-[10px] sm:rounded-[12px] bg-[#F9FAF9] border border-[#E7EFF0]/70 p-1 sm:p-1.5 shrink-0"
       >
         <Image
           src={product.images[0]}
@@ -45,7 +45,7 @@ export default function ProductCard({ product, priority = false }: ProductCardPr
           fill
           priority={priority}
           sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, (max-width: 1440px) 25vw, 20vw"
-          className="object-contain object-center group-hover:scale-105 transition-transform duration-500 ease-out p-0.5 sm:p-1"
+          className="object-contain object-center group-hover:scale-105 transition-transform duration-500 ease-out"
         />
 
         {/* Minimal Rounded Badge (Bestseller / New) */}

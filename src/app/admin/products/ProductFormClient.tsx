@@ -88,6 +88,7 @@ export default function ProductFormClient({
         const { data, error } = await supabase
           .from('categories')
           .select('id, name')
+          .eq('is_active', true)
           .order('name', { ascending: true });
 
         if (isMounted && !error && data && data.length > 0) {

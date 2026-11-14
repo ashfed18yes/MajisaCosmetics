@@ -9,11 +9,40 @@ import {
 const DEFAULT_PRODUCT_IMAGE =
   'https://images.unsplash.com/photo-1596462502278-27bfdc403348?q=80&w=800&auto=format&fit=crop';
 const DEFAULT_CATEGORY_IMAGE =
-  'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?q=80&w=1000&auto=format&fit=crop';
+  'https://images.unsplash.com/photo-1596462502278-27bfdc403348?q=80&w=1000&auto=format&fit=crop';
 const DEFAULT_BRAND_LOGO =
   'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?q=80&w=300&auto=format&fit=crop';
 const DEFAULT_BRAND_BANNER =
   'https://images.unsplash.com/photo-1616683693504-3ea7e9ad6fec?q=80&w=1600&auto=format&fit=crop';
+
+/**
+ * Fallback images mapped by category slug/keyword to ensure every category displays
+ * a tailored, high-quality, category-specific visual representation.
+ */
+const CATEGORY_IMAGE_FALLBACKS: Record<string, string> = {
+  facewash: 'https://images.unsplash.com/photo-1571781926291-c477ebfd024b?q=80&w=1000&auto=format&fit=crop',
+  lipstick: 'https://images.unsplash.com/photo-1586495777744-4413f21062fa?q=80&w=1000&auto=format&fit=crop',
+  lipsticks: 'https://images.unsplash.com/photo-1625093742435-6fa192b6fb10?q=80&w=1000&auto=format&fit=crop',
+  'lip-care': 'https://images.unsplash.com/photo-1617897903246-719242758050?q=80&w=1000&auto=format&fit=crop',
+  haircare: 'https://images.unsplash.com/photo-1535585209827-a15fcdbc4c2d?q=80&w=1000&auto=format&fit=crop',
+  skincare: 'https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?q=80&w=1000&auto=format&fit=crop',
+  'face-makeup': 'https://images.unsplash.com/photo-1631729371254-42c2892f0e6e?q=80&w=1000&auto=format&fit=crop',
+  'eye-makeup': 'https://images.unsplash.com/photo-1512496015851-a90fb38ba796?q=80&w=1000&auto=format&fit=crop',
+  sunscreen: 'https://images.unsplash.com/photo-1598440947619-2c35fc9aa908?q=80&w=1000&auto=format&fit=crop',
+  fragrances: 'https://images.unsplash.com/photo-1592945403244-b3fbafd7f539?q=80&w=1000&auto=format&fit=crop',
+  'all-makeup': 'https://images.unsplash.com/photo-1527799820374-dcf8d9d4a388?q=80&w=1000&auto=format&fit=crop',
+  makeup: 'https://images.unsplash.com/photo-1527799820374-dcf8d9d4a388?q=80&w=1000&auto=format&fit=crop',
+};
+
+function getCategoryFallbackImage(slug?: string, name?: string): string {
+  const s = slug?.toLowerCase().trim() || '';
+  if (CATEGORY_IMAGE_FALLBACKS[s]) return CATEGORY_IMAGE_FALLBACKS[s];
+  const n = name?.toLowerCase().trim() || '';
+  for (const [key, url] of Object.entries(CATEGORY_IMAGE_FALLBACKS)) {
+    if (n.includes(key) || key.includes(n)) return url;
+  }
+  return DEFAULT_CATEGORY_IMAGE;
+}
 
 /**
  * Transforms a raw Supabase product row (with joins) into the frontend `Product` interface.
@@ -84,7 +113,7 @@ function mapSupabaseCategory(c: any): Category {
     name: c.name,
     tagline: c.tagline || 'Botanical Luxury Formulation',
     description: c.description || 'Curated luxury cosmetic formulations handcrafted with the finest botanical ingredients.',
-    image: c.image_url?.trim() || DEFAULT_CATEGORY_IMAGE,
+    image: c.image_url?.trim() || getCategoryFallbackImage(c.slug, c.name),
     featuredInNav: c.featured_in_nav ?? true,
   };
 }
@@ -184,13 +213,16 @@ export const getStorefrontCategories = cache(async (): Promise<Category[]> => {
       .eq('is_active', true)
       .order('display_order', { ascending: true });
 
-    if (error || !rawCats) {
+    if (error || !rawCats || rawCats.length === 0) {
       return MOCK_CATEGORIES;
     }
 
     const liveCats = rawCats.map(mapSupabaseCategory);
-    const liveSlugs = new Set(liveCats.map((c) => c.slug));
-    const nonConflictingMock = MOCK_CATEGORIES.filter((m) => !liveSlugs.has(m.slug));
+    const liveSlugs = new Set(liveCats.map((c) => c.slug.toLowerCase()));
+    const liveNames = new Set(liveCats.map((c) => c.name.toLowerCase()));
+    const nonConflictingMock = MOCK_CATEGORIES.filter(
+      (m) => !liveSlugs.has(m.slug.toLowerCase()) && !liveNames.has(m.name.toLowerCase())
+    );
 
     return [...liveCats, ...nonConflictingMock];
   } catch (err) {
@@ -208,22 +240,23 @@ export const getStorefrontCategoryBySlug = cache(async (slug: string): Promise<C
 
   try {
     const supabase = createPublicClient();
-    const { data: rawCat, error } = await supabase
-      .from('categories')
-      .select('*')
-      .eq('slug', slug)
-      .eq('is_active', true)
-      .maybeSingle();
+    let query = supabase.from('categories').select('*').eq('is_active', true);
+    if (slug === 'all-makeup' || slug === 'makeup') {
+      query = query.or('slug.eq.all-makeup,slug.eq.makeup');
+    } else {
+      query = query.eq('slug', slug);
+    }
+    const { data: rawCat, error } = await query.maybeSingle();
 
     if (!error && rawCat) {
       return mapSupabaseCategory(rawCat);
     }
 
-    const mockMatch = MOCK_CATEGORIES.find((c) => c.slug === slug);
+    const mockMatch = MOCK_CATEGORIES.find((c) => c.slug === slug || (slug === 'all-makeup' && c.slug === 'makeup'));
     return mockMatch || null;
   } catch (err) {
     console.error('Error in getStorefrontCategoryBySlug:', slug, err);
-    const mockMatch = MOCK_CATEGORIES.find((c) => c.slug === slug);
+    const mockMatch = MOCK_CATEGORIES.find((c) => c.slug === slug || (slug === 'all-makeup' && c.slug === 'makeup'));
     return mockMatch || null;
   }
 });
