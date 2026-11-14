@@ -38,6 +38,7 @@ export default async function AdminDashboardData() {
           created_at
         )
       `)
+      .neq('status', 'Awaiting Payment')
       .order('created_at', { ascending: false }),
     adminClient
       .from('order_collections')

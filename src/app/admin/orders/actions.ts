@@ -817,6 +817,7 @@ export async function getRecentAdminNotificationsAction(): Promise<{
     const { data: recentOrders, error } = await adminClient
       .from('orders')
       .select('id, order_number, order_type, total_amount, created_at, shipping_address_snapshot')
+      .neq('status', 'Awaiting Payment')
       .order('created_at', { ascending: false })
       .limit(20);
 

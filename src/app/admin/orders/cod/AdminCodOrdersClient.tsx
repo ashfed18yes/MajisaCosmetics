@@ -1080,7 +1080,7 @@ export default function AdminCodOrdersClient({
                   <span>Fulfillment & Dispatch</span>
                 </div>
 
-                {['Pending Verification', 'Awaiting Payment', 'Payment Action Required'].includes(selectedOrder.status) ? (
+                {['Pending Verification', 'Payment Action Required'].includes(selectedOrder.status) ? (
                   <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-xl text-center text-xs font-semibold text-amber-800">
                     Fulfillment Locked: ₹{(selectedOrder.activePayment?.amountExpected ?? selectedOrder.deliveryFee).toFixed(2)} Advance must be verified before processing or shipping.
                   </div>

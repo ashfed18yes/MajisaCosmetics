@@ -578,7 +578,7 @@ export default function OrderDetailsClient({ initialOrder }: OrderDetailsClientP
 
             {/* Lifecycle Transition Buttons */}
             <div className="flex flex-wrap items-center gap-2.5">
-              {['Pending Verification', 'Awaiting Payment', 'Payment Action Required'].includes(order.status) && (
+              {['Pending Verification', 'Payment Action Required'].includes(order.status) && (
                 <div className="flex items-center gap-2 text-amber-800 text-xs font-semibold bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-lg">
                   <Clock className="w-3.5 h-3.5 text-amber-600 shrink-0" />
                   <span>Fulfillment Locked: Payment must be verified before processing or dispatching.</span>

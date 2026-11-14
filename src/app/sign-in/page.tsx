@@ -3,7 +3,7 @@
 import React, { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Eye, EyeOff, Lock, Mail, ArrowRight, Sparkles } from 'lucide-react';
+import { Eye, EyeOff, Lock, Mail, ArrowRight, Sparkles, CheckCircle2 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 
 function getSafeRedirectUrl(target: string | null, defaultPath = '/account'): string {
@@ -19,11 +19,13 @@ function SignInContent() {
   const searchParams = useSearchParams();
   const rawRedirect = searchParams.get('redirectTo') || searchParams.get('next');
   const urlError = searchParams.get('error');
+  const urlMessage = searchParams.get('message');
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState(urlError ? decodeURIComponent(urlError) : '');
+  const [message, setMessage] = useState(urlMessage ? decodeURIComponent(urlMessage) : '');
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
@@ -32,6 +34,12 @@ function SignInContent() {
       setError(decodeURIComponent(urlError));
     }
   }, [urlError]);
+
+  useEffect(() => {
+    if (urlMessage) {
+      setMessage(decodeURIComponent(urlMessage));
+    }
+  }, [urlMessage]);
 
   const handleGoogleSignIn = async () => {
     setIsGoogleLoading(true);
@@ -68,6 +76,7 @@ function SignInContent() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setMessage('');
 
     if (!email || !/\S+@\S+\.\S+/.test(email)) {
       setError('Please provide a valid email address.');
@@ -88,19 +97,28 @@ function SignInContent() {
       });
 
       if (signInError) {
-        setError(signInError.message || 'Invalid email or password. Please try again.');
+        const errMsg = signInError.message || '';
+        if (errMsg.toLowerCase().includes('email not confirmed')) {
+          setError(
+            'Your email address has not been confirmed yet. Please verify your email via the confirmation link sent to your inbox, or use "Forgot Password" to reset.'
+          );
+        } else if (errMsg.toLowerCase().includes('invalid login credentials')) {
+          setError('Invalid email or password. Please verify your credentials and try again.');
+        } else {
+          setError(signInError.message || 'Invalid email or password. Please try again.');
+        }
         setIsLoading(false);
         return;
       }
 
       if (data.session) {
         const destination = getSafeRedirectUrl(rawRedirect, '/account');
-        router.push(destination);
-        router.refresh();
+        // Full navigation ensures server components and middleware receive newly set cookies
+        window.location.href = destination;
       }
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'An unexpected error occurred during sign in.';
-      setError(message);
+      const msg = err instanceof Error ? err.message : 'An unexpected error occurred during sign in.';
+      setError(msg);
       setIsLoading(false);
     }
   };
@@ -121,6 +139,14 @@ function SignInContent() {
             Sign in to access your saved formulations, order history, and privileges.
           </p>
         </div>
+
+        {/* Success Alert */}
+        {message && (
+          <div className="p-3 rounded-lg bg-[#DDF3F2] border border-[#128F92]/30 text-xs text-[#0B4145] font-semibold flex items-start gap-2 animate-in fade-in">
+            <CheckCircle2 className="w-4 h-4 text-[#128F92] shrink-0 mt-0.5" />
+            <span>{message}</span>
+          </div>
+        )}
 
         {/* Error Alert */}
         {error && (
@@ -153,13 +179,12 @@ function SignInContent() {
               <label className="text-xs uppercase tracking-wider font-bold text-[#102F32]">
                 Password
               </label>
-              <button
-                type="button"
-                onClick={() => alert('Password recovery will be connected with Supabase Auth.')}
+              <Link
+                href="/forgot-password"
                 className="text-[11px] text-[#128F92] hover:text-[#0B4145] font-semibold hover:underline"
               >
                 Forgot Password?
-              </button>
+              </Link>
             </div>
             <div className="relative">
               <Lock className="w-4 h-4 text-[#687F8D] absolute left-3 top-1/2 -translate-y-1/2" />

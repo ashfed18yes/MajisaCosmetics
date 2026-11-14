@@ -49,7 +49,7 @@ export default function SignUpPage() {
     try {
       const supabase = createClient();
       const origin = typeof window !== 'undefined' ? window.location.origin : '';
-      const emailRedirectTo = `${origin}/auth/callback`;
+      const emailRedirectTo = `${origin}/auth/callback?next=/account`;
 
       const { data, error: signUpError } = await supabase.auth.signUp({
         email: email.trim(),
@@ -64,7 +64,12 @@ export default function SignUpPage() {
       });
 
       if (signUpError) {
-        setError(signUpError.message);
+        const msg = signUpError.message || '';
+        if (msg.toLowerCase().includes('already registered') || msg.toLowerCase().includes('already exists')) {
+          setError('An account with this email address already exists. Please sign in instead.');
+        } else {
+          setError(signUpError.message);
+        }
         setIsLoading(false);
         return;
       }
@@ -78,8 +83,7 @@ export default function SignUpPage() {
 
       // If email confirmation is disabled in Supabase, a session is created immediately
       if (data.session) {
-        router.push('/account');
-        router.refresh();
+        window.location.href = '/account';
         return;
       }
 

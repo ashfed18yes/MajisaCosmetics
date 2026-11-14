@@ -1039,7 +1039,7 @@ export default function AdminOnlineOrdersClient({
                   <span>Fulfillment & Dispatch</span>
                 </div>
 
-                {['Pending Verification', 'Awaiting Payment', 'Payment Action Required'].includes(selectedOrder.status) ? (
+                {['Pending Verification', 'Payment Action Required'].includes(selectedOrder.status) ? (
                   <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-xl text-center text-xs font-semibold text-amber-800">
                     Fulfillment Locked: Payment must be verified before processing or dispatching.
                   </div>

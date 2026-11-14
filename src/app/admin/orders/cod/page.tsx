@@ -70,7 +70,8 @@ export default async function AdminCodOrdersPage({ searchParams }: PageProps) {
         created_at
       )
     `, { count: 'exact' })
-    .eq('order_type', 'cod');
+    .eq('order_type', 'cod')
+    .neq('status', 'Awaiting Payment');
 
   if (statusFilter && statusFilter !== 'All') {
     if (statusFilter === 'Shipped') {
@@ -78,7 +79,7 @@ export default async function AdminCodOrdersPage({ searchParams }: PageProps) {
     } else if (statusFilter === 'Processing') {
       query = query.in('status', ['Processing', 'Confirmed']);
     } else if (statusFilter === 'Pending') {
-      query = query.in('status', ['Pending Verification', 'Awaiting Payment', 'Payment Action Required']);
+      query = query.in('status', ['Pending Verification', 'Payment Action Required']);
     } else if (statusFilter === 'Cancelled') {
       query = query.eq('status', 'Cancelled');
     }

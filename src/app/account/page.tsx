@@ -57,6 +57,7 @@ export default async function AccountPage() {
         )
       `)
       .eq('user_id', user.id)
+      .neq('status', 'Awaiting Payment')
       .order('created_at', { ascending: false })
       .limit(25),
   ]);

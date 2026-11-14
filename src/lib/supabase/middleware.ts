@@ -61,10 +61,11 @@ export async function updateSession(request: NextRequest) {
 
   const pathname = request.nextUrl.pathname;
 
-  // Fallback handler: If an auth code arrives at root or any non-callback path,
-  // forward it to /auth/callback so the PKCE code exchange executes properly.
+  // Fallback handler: If an auth code or token_hash arrives at root or any non-callback path,
+  // forward it to /auth/callback so the PKCE code exchange or OTP verification executes properly.
   const authCode = request.nextUrl.searchParams.get('code');
-  if (authCode && !pathname.startsWith('/auth/callback')) {
+  const tokenHash = request.nextUrl.searchParams.get('token_hash');
+  if ((authCode || tokenHash) && !pathname.startsWith('/auth/callback')) {
     const callbackUrl = request.nextUrl.clone();
     callbackUrl.pathname = '/auth/callback';
     return NextResponse.redirect(callbackUrl);

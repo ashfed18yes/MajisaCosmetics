@@ -107,6 +107,11 @@ export default async function AdminOrderDetailsPage({ params }: PageProps) {
     notFound();
   }
 
+  // Guard against unsubmitted checkout drafts and abandoned payment attempts
+  if (rawOrder.status === 'Awaiting Payment') {
+    notFound();
+  }
+
   // Parse shipping address from JSONB snapshot
   const addr = typeof rawOrder.shipping_address_snapshot === 'object' && rawOrder.shipping_address_snapshot !== null
     ? rawOrder.shipping_address_snapshot

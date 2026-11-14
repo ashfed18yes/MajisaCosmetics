@@ -1,5 +1,6 @@
 'use server';
 
+import { revalidatePath } from 'next/cache';
 import { createClient, getCachedUser } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import {
@@ -315,22 +316,18 @@ export async function createOrderAction(input: CreateOrderInput) {
 
   // If COD order has free delivery (₹0 advance needed), auto-confirm order without requiring upfront payment proof
   if (input.orderType === 'cod' && authoritativeDeliveryFee === 0) {
-    if (rpcResult.status !== 'Confirmed') {
-      const adminClient = createAdminClient();
-      if (rpcResult.payment_id) {
-        await adminClient
-          .from('payments')
-          .update({
-            verification_status: 'verified',
-            amount_submitted: 0,
-            amount_expected: 0,
-            utr_reference: null,
-            verified_at: new Date().toISOString(),
-            admin_notes: 'Complimentary free delivery - zero advance required',
-          })
-          .eq('id', rpcResult.payment_id);
-      }
+    const adminClient = createAdminClient();
 
+    // Ensure no fake payment attempt record is kept in public.payments
+    if (rpcResult.payment_id) {
+      await adminClient
+        .from('payments')
+        .delete()
+        .eq('id', rpcResult.payment_id);
+      rpcResult.payment_id = null;
+    }
+
+    if (rpcResult.status !== 'Confirmed') {
       // Transition via allowed states: 'Awaiting Payment' -> 'Pending Verification' -> 'Confirmed'
       await adminClient
         .from('orders')
@@ -356,6 +353,10 @@ export async function createOrderAction(input: CreateOrderInput) {
       rpcResult.amount_expected = 0;
       rpcResult.is_auto_confirmed = true;
     }
+
+    // Revalidate admin queues so the newly confirmed free-delivery COD order is visible immediately
+    revalidatePath('/admin');
+    revalidatePath('/admin/orders/cod');
   }
 
   return {
@@ -546,6 +547,12 @@ export async function submitDirectPaymentProofAction(input: DirectProofSubmissio
     };
   }
 
+  // Revalidate admin queues so the newly submitted order appears in Admin Orders
+  revalidatePath('/admin');
+  revalidatePath('/admin/orders/online');
+  revalidatePath('/admin/orders/cod');
+  revalidatePath(`/admin/orders/${orderId}`);
+
   return {
     success: true,
     data: rpcResult,
@@ -656,6 +663,12 @@ export async function submitPaymentProofAction(formData: FormData) {
           rpcError?.message || 'Failed to register payment proof with order.',
       };
     }
+
+    // Revalidate admin queues so the newly submitted order appears in Admin Orders
+    revalidatePath('/admin');
+    revalidatePath('/admin/orders/online');
+    revalidatePath('/admin/orders/cod');
+    revalidatePath(`/admin/orders/${orderId}`);
 
     return {
       success: true,

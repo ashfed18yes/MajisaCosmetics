@@ -97,10 +97,60 @@ export default function AdminNotificationBell({ userId }: AdminNotificationBellP
     };
   }, [storageKey]);
 
-  // 2. Realtime Subscription: Listen only to newly INSERTED orders in Supabase
+  // 2. Realtime Subscription: Listen to newly submitted orders in Supabase
   useEffect(() => {
     const supabase = createClient();
     const channelName = `admin-orders-notifications-${userId}`;
+
+    const handleOrderNotification = (newRaw: any) => {
+      if (!newRaw || !newRaw.id) return;
+      // Admin visibility rule: Ignore draft orders awaiting payment proof
+      if (newRaw.status === 'Awaiting Payment') return;
+
+      setNotifications((prev) => {
+        // Requirement 9: Deduplicate against existing state
+        if (prev.some((n) => n.id === newRaw.id)) {
+          return prev;
+        }
+
+        // Extract customer recipient name safely from shipping_address_snapshot
+        let addr: Record<string, any> = {};
+        if (
+          typeof newRaw.shipping_address_snapshot === 'object' &&
+          newRaw.shipping_address_snapshot !== null
+        ) {
+          addr = newRaw.shipping_address_snapshot;
+        } else if (typeof newRaw.shipping_address_snapshot === 'string') {
+          try {
+            addr = JSON.parse(newRaw.shipping_address_snapshot);
+          } catch {
+            addr = {};
+          }
+        }
+
+        const customerName =
+          addr.recipient_name || addr.fullName || addr.name || 'Customer';
+
+        const readIds = getStoredReadIds();
+        const isRead = readIds.includes(newRaw.id);
+
+        const newItem: AdminNotificationItem = {
+          id: newRaw.id,
+          orderNumber: newRaw.order_number || newRaw.id.slice(0, 8),
+          customerName,
+          totalAmount: Number(newRaw.total_amount) || 0,
+          orderType: (newRaw.order_type === 'cod' ? 'cod' : 'online') as 'online' | 'cod',
+          createdAt: newRaw.created_at || new Date().toISOString(),
+          isRead,
+        };
+
+        // Trigger notification pulse
+        setHasPulse(true);
+        setTimeout(() => setHasPulse(false), 3000);
+
+        return [newItem, ...prev];
+      });
+    };
 
     const channel = supabase
       .channel(channelName)
@@ -112,52 +162,26 @@ export default function AdminNotificationBell({ userId }: AdminNotificationBellP
           table: 'orders',
         },
         (payload) => {
+          handleOrderNotification(payload.new);
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'orders',
+        },
+        (payload) => {
           const newRaw = payload.new as any;
-          if (!newRaw || !newRaw.id) return;
-
-          setNotifications((prev) => {
-            // Requirement 9: Deduplicate against existing state
-            if (prev.some((n) => n.id === newRaw.id)) {
-              return prev;
-            }
-
-            // Extract customer recipient name safely from shipping_address_snapshot
-            let addr: Record<string, any> = {};
-            if (
-              typeof newRaw.shipping_address_snapshot === 'object' &&
-              newRaw.shipping_address_snapshot !== null
-            ) {
-              addr = newRaw.shipping_address_snapshot;
-            } else if (typeof newRaw.shipping_address_snapshot === 'string') {
-              try {
-                addr = JSON.parse(newRaw.shipping_address_snapshot);
-              } catch {
-                addr = {};
-              }
-            }
-
-            const customerName =
-              addr.recipient_name || addr.fullName || addr.name || 'Customer';
-
-            const readIds = getStoredReadIds();
-            const isRead = readIds.includes(newRaw.id);
-
-            const newItem: AdminNotificationItem = {
-              id: newRaw.id,
-              orderNumber: newRaw.order_number || newRaw.id.slice(0, 8),
-              customerName,
-              totalAmount: Number(newRaw.total_amount) || 0,
-              orderType: (newRaw.order_type === 'cod' ? 'cod' : 'online') as 'online' | 'cod',
-              createdAt: newRaw.created_at || new Date().toISOString(),
-              isRead,
-            };
-
-            // Trigger notification pulse
-            setHasPulse(true);
-            setTimeout(() => setHasPulse(false), 3000);
-
-            return [newItem, ...prev];
-          });
+          const oldRaw = payload.old as any;
+          // Trigger when order transitions from Awaiting Payment to Pending Verification upon proof submission
+          if (
+            newRaw?.status === 'Pending Verification' &&
+            (!oldRaw || oldRaw.status === 'Awaiting Payment')
+          ) {
+            handleOrderNotification(newRaw);
+          }
         }
       )
       .subscribe((status, err) => {

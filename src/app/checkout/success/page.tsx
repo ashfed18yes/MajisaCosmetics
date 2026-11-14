@@ -89,6 +89,11 @@ export default async function CheckoutSuccessPage({
     redirect('/account');
   }
 
+  // Guard against unsubmitted checkout drafts
+  if (order.status === 'Awaiting Payment') {
+    redirect('/checkout');
+  }
+
   return <CheckoutSuccessClient order={order} />;
 }
 
