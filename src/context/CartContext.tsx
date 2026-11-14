@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
 import { CartItem, Product } from '@/types';
 import { FREE_DELIVERY_THRESHOLD } from '@/lib/delivery';
 
@@ -47,14 +47,14 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     }
   }, [cart]);
 
-  const showToast = (msg: string) => {
+  const showToast = useCallback((msg: string) => {
     setToastMessage(msg);
     setTimeout(() => {
       setToastMessage(null);
     }, 3500);
-  };
+  }, []);
 
-  const addToCart = (
+  const addToCart = useCallback((
     product: Product,
     quantity = 1,
     selectedShade?: string,
@@ -83,13 +83,13 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
     showToast(`Added "${product.name}" to your bag.`);
     setIsCartOpen(true);
-  };
+  }, [showToast]);
 
-  const removeFromCart = (itemId: string) => {
+  const removeFromCart = useCallback((itemId: string) => {
     setCart((prev) => prev.filter((item) => item.id !== itemId));
-  };
+  }, []);
 
-  const updateQuantity = (itemId: string, quantity: number) => {
+  const updateQuantity = useCallback((itemId: string, quantity: number) => {
     if (quantity <= 0) {
       removeFromCart(itemId);
       return;
@@ -97,31 +97,51 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     setCart((prev) =>
       prev.map((item) => (item.id === itemId ? { ...item, quantity } : item))
     );
-  };
+  }, [removeFromCart]);
 
-  const clearCart = () => setCart([]);
+  const clearCart = useCallback(() => setCart([]), []);
 
-  const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
-  const subtotal = cart.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
+  const totalItems = useMemo(
+    () => cart.reduce((sum, item) => sum + item.quantity, 0),
+    [cart]
+  );
+
+  const subtotal = useMemo(
+    () => cart.reduce((sum, item) => sum + item.product.price * item.quantity, 0),
+    [cart]
+  );
+
   const freeShippingThreshold = FREE_DELIVERY_THRESHOLD;
 
+  const contextValue = useMemo<CartContextType>(() => ({
+    cart,
+    addToCart,
+    removeFromCart,
+    updateQuantity,
+    clearCart,
+    isCartOpen,
+    setIsCartOpen,
+    totalItems,
+    subtotal,
+    freeShippingThreshold,
+    toastMessage,
+    showToast,
+  }), [
+    cart,
+    addToCart,
+    removeFromCart,
+    updateQuantity,
+    clearCart,
+    isCartOpen,
+    totalItems,
+    subtotal,
+    freeShippingThreshold,
+    toastMessage,
+    showToast,
+  ]);
+
   return (
-    <CartContext.Provider
-      value={{
-        cart,
-        addToCart,
-        removeFromCart,
-        updateQuantity,
-        clearCart,
-        isCartOpen,
-        setIsCartOpen,
-        totalItems,
-        subtotal,
-        freeShippingThreshold,
-        toastMessage,
-        showToast,
-      }}
-    >
+    <CartContext.Provider value={contextValue}>
       {children}
     </CartContext.Provider>
   );

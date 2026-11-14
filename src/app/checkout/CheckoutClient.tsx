@@ -311,6 +311,7 @@ export default function CheckoutClient({
 
   // Handle Order Creation
   const handleProceedToPayment = async () => {
+    if (isCreatingOrder) return;
     setCheckoutError(null);
 
     if (cart.length === 0) {

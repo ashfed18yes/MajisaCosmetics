@@ -13,17 +13,32 @@ interface SearchModalProps {
   onClose: () => void;
 }
 
+// In-memory session cache to avoid repeated Supabase queries across modal re-opens
+let cachedSearchCatalog: {
+  products: Product[];
+  categories: Category[];
+  brands: Brand[];
+} | null = null;
+
 export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
   const [query, setQuery] = useState('');
-  const [products, setProducts] = useState<Product[]>([]);
-  const [categories, setCategories] = useState<Category[]>(MOCK_CATEGORIES);
-  const [brands, setBrands] = useState<Brand[]>(MOCK_BRANDS);
+  const [products, setProducts] = useState<Product[]>(() => cachedSearchCatalog?.products || []);
+  const [categories, setCategories] = useState<Category[]>(() => cachedSearchCatalog?.categories || MOCK_CATEGORIES);
+  const [brands, setBrands] = useState<Brand[]>(() => cachedSearchCatalog?.brands || MOCK_BRANDS);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (isOpen) {
       setTimeout(() => inputRef.current?.focus(), 50);
       document.body.style.overflow = 'hidden';
+
+      // If already cached in memory, use cached catalog immediately without network latency
+      if (cachedSearchCatalog) {
+        setProducts(cachedSearchCatalog.products);
+        setCategories(cachedSearchCatalog.categories);
+        setBrands(cachedSearchCatalog.brands);
+        return;
+      }
 
       // Load latest live catalog from Supabase
       try {
@@ -36,8 +51,9 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
           supabase.from('categories').select('id, slug, name, tagline, description, image_url').eq('is_active', true),
           supabase.from('brands').select('id, slug, name, tagline, description, logo_url').eq('is_active', true),
         ]).then(([{ data: rawProds }, { data: rawCats }, { data: rawBrands }]) => {
+          let resolvedProds: Product[] = [];
           if (rawProds && rawProds.length > 0) {
-            const liveProds: Product[] = rawProds.map((p: any) => ({
+            resolvedProds = rawProds.map((p: any) => ({
               id: p.id,
               slug: p.slug,
               name: p.name,
@@ -54,11 +70,12 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
               images: (p.product_images || []).map((img: any) => img.secure_url).filter(Boolean),
               isAvailable: p.is_available,
             }));
-            setProducts(liveProds);
+            setProducts(resolvedProds);
           } else {
             setProducts([]);
           }
 
+          let resolvedCats: Category[] = MOCK_CATEGORIES;
           if (rawCats && rawCats.length > 0) {
             const liveCats: Category[] = rawCats.map((c: any) => ({
               id: c.id,
@@ -69,9 +86,11 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
               image: c.image_url || '',
             }));
             const liveSlugs = new Set(liveCats.map((c) => c.slug));
-            setCategories([...liveCats, ...MOCK_CATEGORIES.filter((m) => !liveSlugs.has(m.slug))]);
+            resolvedCats = [...liveCats, ...MOCK_CATEGORIES.filter((m) => !liveSlugs.has(m.slug))];
+            setCategories(resolvedCats);
           }
 
+          let resolvedBrands: Brand[] = MOCK_BRANDS;
           if (rawBrands && rawBrands.length > 0) {
             const liveBrands: Brand[] = rawBrands.map((b: any) => ({
               id: b.id,
@@ -84,8 +103,15 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
               origin: b.origin || 'Jaipur',
             }));
             const liveSlugs = new Set(liveBrands.map((b) => b.slug));
-            setBrands([...liveBrands, ...MOCK_BRANDS.filter((m) => !liveSlugs.has(m.slug))]);
+            resolvedBrands = [...liveBrands, ...MOCK_BRANDS.filter((m) => !liveSlugs.has(m.slug))];
+            setBrands(resolvedBrands);
           }
+
+          cachedSearchCatalog = {
+            products: resolvedProds,
+            categories: resolvedCats,
+            brands: resolvedBrands,
+          };
         });
       } catch {}
     } else {

@@ -1,5 +1,6 @@
 'use server';
 
+import { cache } from 'react';
 import { revalidatePath } from 'next/cache';
 import { createClient, getCachedUser } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -48,8 +49,9 @@ export interface UpiConfigResult {
  * Checks whether store_settings has an active, valid UPI merchant configuration.
  * Uses administrative client server-side because payment_upi is marked is_public = false.
  * Never exposes credentials to client bundles.
+ * Wrapped in React cache() to deduplicate queries within a request.
  */
-export async function getUpiPaymentConfig(): Promise<UpiConfigResult> {
+export const getUpiPaymentConfig = cache(async (): Promise<UpiConfigResult> => {
   try {
     const admin = createAdminClient();
     const { data: row, error } = await admin
@@ -91,7 +93,7 @@ export async function getUpiPaymentConfig(): Promise<UpiConfigResult> {
       reason: 'Failed to verify UPI payment configuration.',
     };
   }
-}
+});
 
 /**
  * Server Action: Creates order and initial payment attempt.

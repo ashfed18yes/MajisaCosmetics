@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { useState, useEffect, useTransition } from 'react';
+import React, { useState, useEffect, useTransition, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
@@ -152,6 +152,7 @@ export default function OrderDetailsClient({ initialOrder }: OrderDetailsClientP
   // Payment proof inspection modal
   const [proofModalUrl, setProofModalUrl] = useState<string | null>(null);
   const [isLoadingProof, setIsLoadingProof] = useState(false);
+  const signedProofUrlCacheRef = useRef<Map<string, string>>(new Map());
 
   // Rejection modal state
   const [rejectingPaymentId, setRejectingPaymentId] = useState<string | null>(null);
@@ -166,14 +167,19 @@ export default function OrderDetailsClient({ initialOrder }: OrderDetailsClientP
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // Helper to open short-lived signed proof URL
+  // Helper to open short-lived signed proof URL (cached in memory)
   const handleOpenProof = async (proofPublicId: string | null) => {
     if (!proofPublicId) return;
+    if (signedProofUrlCacheRef.current.has(proofPublicId)) {
+      setProofModalUrl(signedProofUrlCacheRef.current.get(proofPublicId)!);
+      return;
+    }
     setIsLoadingProof(true);
     setActionError(null);
     try {
       const res = await getSignedProofUrlAction(proofPublicId);
       if (res.success && res.url) {
+        signedProofUrlCacheRef.current.set(proofPublicId, res.url);
         setProofModalUrl(res.url);
       } else {
         setActionError(res.error || 'Failed to generate signed screenshot access URL.');

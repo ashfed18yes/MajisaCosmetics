@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useTransition } from 'react';
+import React, { useState, useMemo, useTransition, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -123,6 +123,7 @@ export default function AdminOnlineOrdersClient({
   const [selectedOrder, setSelectedOrder] = useState<AdminOrderRow | null>(null);
   const [isPendingAction, startTransition] = useTransition();
   const [isVerifyingPayment, setIsVerifyingPayment] = useState(false);
+  const signedUrlCacheRef = useRef<Map<string, string>>(new Map());
   const [isRejectingPayment, setIsRejectingPayment] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
@@ -202,20 +203,26 @@ export default function AdminOnlineOrdersClient({
     setCourierName(order.courierPartner || '');
     setTrackingNum(order.trackingNumber || '');
 
-    // Fetch signed URL if proof is attached
-    if (order.activePayment?.proofSecurePath) {
-      setIsLoadingProof(true);
-      try {
-        const res = await getSignedProofUrlAction(order.activePayment.proofSecurePath);
-        if (res.success && res.url) {
-          setProofPreviewUrl(res.url);
-        } else {
+    // Fetch signed URL if proof is attached (cached in memory to avoid repeated network round-trips)
+    const proofPath = order.activePayment?.proofSecurePath;
+    if (proofPath) {
+      if (signedUrlCacheRef.current.has(proofPath)) {
+        setProofPreviewUrl(signedUrlCacheRef.current.get(proofPath)!);
+      } else {
+        setIsLoadingProof(true);
+        try {
+          const res = await getSignedProofUrlAction(proofPath);
+          if (res.success && res.url) {
+            signedUrlCacheRef.current.set(proofPath, res.url);
+            setProofPreviewUrl(res.url);
+          } else {
+            setProofPreviewUrl(null);
+          }
+        } catch {
           setProofPreviewUrl(null);
+        } finally {
+          setIsLoadingProof(false);
         }
-      } catch {
-        setProofPreviewUrl(null);
-      } finally {
-        setIsLoadingProof(false);
       }
     } else {
       setProofPreviewUrl(null);

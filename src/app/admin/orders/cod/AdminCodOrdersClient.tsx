@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useTransition } from 'react';
+import React, { useState, useMemo, useTransition, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -75,6 +75,7 @@ export default function AdminCodOrdersClient({
   const [trackingNum, setTrackingNum] = useState('');
   const [proofPreviewUrl, setProofPreviewUrl] = useState<string | null>(null);
   const [isLoadingProof, setIsLoadingProof] = useState(false);
+  const signedUrlCacheRef = useRef<Map<string, string>>(new Map());
 
   // Doorstep collection modal state
   const [showCollectionModal, setShowCollectionModal] = useState(false);
@@ -147,19 +148,26 @@ export default function AdminCodOrdersClient({
     setCourierName(order.courierPartner || '');
     setTrackingNum(order.trackingNumber || '');
 
-    if (order.activePayment?.proofSecurePath) {
-      setIsLoadingProof(true);
-      try {
-        const res = await getSignedProofUrlAction(order.activePayment.proofSecurePath);
-        if (res.success && res.url) {
-          setProofPreviewUrl(res.url);
-        } else {
+    // Fetch signed URL if proof is attached (cached in memory to avoid repeated network round-trips)
+    const proofPath = order.activePayment?.proofSecurePath;
+    if (proofPath) {
+      if (signedUrlCacheRef.current.has(proofPath)) {
+        setProofPreviewUrl(signedUrlCacheRef.current.get(proofPath)!);
+      } else {
+        setIsLoadingProof(true);
+        try {
+          const res = await getSignedProofUrlAction(proofPath);
+          if (res.success && res.url) {
+            signedUrlCacheRef.current.set(proofPath, res.url);
+            setProofPreviewUrl(res.url);
+          } else {
+            setProofPreviewUrl(null);
+          }
+        } catch {
           setProofPreviewUrl(null);
+        } finally {
+          setIsLoadingProof(false);
         }
-      } catch {
-        setProofPreviewUrl(null);
-      } finally {
-        setIsLoadingProof(false);
       }
     } else {
       setProofPreviewUrl(null);

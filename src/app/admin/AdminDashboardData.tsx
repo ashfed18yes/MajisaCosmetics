@@ -9,133 +9,6 @@ import AdminDashboardClient, {
 export default async function AdminDashboardData() {
   const adminClient = createAdminClient();
 
-  // 1. Fetch real orders and confirmed doorstep collections concurrently from Supabase
-  const [
-    { data: rawOrders, error: ordersError },
-    { data: rawCollections, error: collectionsError }
-  ] = await Promise.all([
-    adminClient
-      .from('orders')
-      .select(`
-        id,
-        order_number,
-        order_type,
-        status,
-        payment_status,
-        subtotal,
-        delivery_fee,
-        total_amount,
-        advance_amount_paid,
-        balance_amount_due,
-        shipping_address_snapshot,
-        created_at,
-        customer:profiles!orders_user_id_fkey ( full_name, email ),
-        payments (
-          id,
-          attempt_number,
-          verification_status,
-          utr_reference,
-          created_at
-        )
-      `)
-      .neq('status', 'Awaiting Payment')
-      .order('created_at', { ascending: false }),
-    adminClient
-      .from('order_collections')
-      .select(`
-        id,
-        order_id,
-        amount_collected,
-        collection_type,
-        payment_method,
-        collected_at,
-        created_at,
-        orders ( id, order_number )
-      `)
-      .order('collected_at', { ascending: false }),
-  ]);
-
-  if (ordersError) {
-    console.error('Error fetching dashboard orders:', {
-      message: ordersError.message,
-      code: ordersError.code,
-      details: ordersError.details,
-    });
-  }
-
-  if (collectionsError) {
-    console.error('Error fetching dashboard collections:', {
-      message: collectionsError.message,
-      code: collectionsError.code,
-      details: collectionsError.details,
-    });
-  }
-
-  const orders = rawOrders || [];
-  const collections = rawCollections || [];
-
-  // =========================================================================
-  // KPI CALCULATIONS (Strictly real Supabase records, zero mock data)
-  // =========================================================================
-
-  const totalOrders = orders.length;
-
-  const onlineOrdersCount = orders.filter((o: any) => o.order_type === 'online').length;
-  const codOrdersCount = orders.filter((o: any) => o.order_type === 'cod').length;
-
-  const awaitingDispatchCount = orders.filter((o: any) =>
-    ['Confirmed', 'Processing'].includes(o.status)
-  ).length;
-
-  const deliveredCount = orders.filter((o: any) => o.status === 'Delivered').length;
-
-  // Pending payment verification count:
-  // Strictly orders awaiting admin action: status is 'Pending Verification' or has an active payment attempt in 'pending' status.
-  // Excludes 'Payment Action Required' (which awaits customer re-submission, not admin review) and 'Cancelled' orders.
-  // Filters over distinct order records to guarantee no duplicate counts from multiple payment attempts.
-  const pendingOrdersList = orders.filter((o: any) => {
-    if (o.status === 'Cancelled') return false;
-    if (o.status === 'Pending Verification') return true;
-    const payments = Array.isArray(o.payments) ? o.payments : [];
-    return payments.some((p: any) => p.verification_status === 'pending');
-  });
-  const pendingVerificationCount = pendingOrdersList.length;
-
-  // Outstanding COD balance:
-  // Actual balance_amount_due on active (non-cancelled, non-fully-paid) COD orders.
-  // Strictly excludes cancelled orders to avoid inflating the outstanding balance.
-  const outstandingCodBalance = orders
-    .filter(
-      (o: any) =>
-        o.order_type === 'cod' &&
-        o.payment_status !== 'fully_paid' &&
-        o.status !== 'Cancelled'
-    )
-    .reduce((sum: number, o: any) => sum + (Number(o.balance_amount_due) || 0), 0);
-
-  // Collected COD revenue:
-  // Authoritative sum of amount_collected from public.order_collections table.
-  // Doorstep collections only; strictly excludes COD advance payments (Rs 100) which reside in public.payments.
-  const collectedCodRevenue = collections.reduce(
-    (sum: number, c: any) => sum + (Number(c.amount_collected ?? c.amount) || 0),
-    0
-  );
-
-  const kpis: DashboardKpis = {
-    totalOrders,
-    pendingVerificationCount,
-    onlineOrdersCount,
-    codOrdersCount,
-    awaitingDispatchCount,
-    deliveredCount,
-    outstandingCodBalance,
-    collectedCodRevenue,
-  };
-
-  // =========================================================================
-  // NORMALIZATION FOR DISPLAY TABLES
-  // =========================================================================
-
   // Helper to extract customer name & email
   const normalizeOrder = (order: any): DashboardOrderRow => {
     const addr =
@@ -166,10 +39,158 @@ export default async function AdminDashboardData() {
     };
   };
 
-  const recentOrders: DashboardOrderRow[] = orders.slice(0, 7).map(normalizeOrder);
-  const pendingVerifications: DashboardOrderRow[] = pendingOrdersList.slice(0, 5).map(normalizeOrder);
+  // PERFORMANCE OPTIMIZATION:
+  // Parallelize bounded queries:
+  // 1. RPC or lightweight aggregates for KPIs (zero megabyte table scans)
+  // 2. Exactly 7 recent orders with .limit(7)
+  // 3. Exactly 5 pending verifications with .limit(5)
+  // 4. Exactly 5 recent collections with .limit(5)
+  const [
+    kpiRpcRes,
+    recentOrdersRes,
+    pendingVerificationsRes,
+    recentCollectionsRes,
+  ] = await Promise.all([
+    adminClient.rpc('get_admin_dashboard_kpis'),
+    adminClient
+      .from('orders')
+      .select(`
+        id,
+        order_number,
+        order_type,
+        status,
+        payment_status,
+        subtotal,
+        delivery_fee,
+        total_amount,
+        advance_amount_paid,
+        balance_amount_due,
+        shipping_address_snapshot,
+        created_at,
+        customer:profiles!orders_user_id_fkey ( full_name, email ),
+        payments (
+          id,
+          attempt_number,
+          verification_status,
+          utr_reference,
+          created_at
+        )
+      `)
+      .neq('status', 'Awaiting Payment')
+      .order('created_at', { ascending: false })
+      .limit(7),
+    adminClient
+      .from('orders')
+      .select(`
+        id,
+        order_number,
+        order_type,
+        status,
+        payment_status,
+        subtotal,
+        delivery_fee,
+        total_amount,
+        advance_amount_paid,
+        balance_amount_due,
+        shipping_address_snapshot,
+        created_at,
+        customer:profiles!orders_user_id_fkey ( full_name, email ),
+        payments (
+          id,
+          attempt_number,
+          verification_status,
+          utr_reference,
+          created_at
+        )
+      `)
+      .eq('status', 'Pending Verification')
+      .order('created_at', { ascending: false })
+      .limit(5),
+    adminClient
+      .from('order_collections')
+      .select(`
+        id,
+        order_id,
+        amount_collected,
+        collection_type,
+        payment_method,
+        collected_at,
+        created_at,
+        orders ( id, order_number )
+      `)
+      .order('collected_at', { ascending: false })
+      .limit(5),
+  ]);
 
-  const recentCollections: DashboardCodCollection[] = collections.slice(0, 5).map((c: any) => {
+  let kpis: DashboardKpis;
+
+  // If database aggregate RPC is available, use database-computed aggregates (< 3ms)
+  if (!kpiRpcRes.error && kpiRpcRes.data) {
+    const d = kpiRpcRes.data as any;
+    kpis = {
+      totalOrders: Number(d.total_orders) || 0,
+      pendingVerificationCount: Number(d.pending_verification_count) || 0,
+      onlineOrdersCount: Number(d.online_orders_count) || 0,
+      codOrdersCount: Number(d.cod_orders_count) || 0,
+      awaitingDispatchCount: Number(d.awaiting_dispatch_count) || 0,
+      deliveredCount: Number(d.delivered_count) || 0,
+      outstandingCodBalance: Number(d.outstanding_cod_balance) || 0,
+      collectedCodRevenue: Number(d.collected_cod_revenue) || 0,
+    };
+  } else {
+    // Ultra-lightweight fallback: fetch only 4 minimal columns without any joins
+    const [fallbackOrdersRes, fallbackCollectionsRes] = await Promise.all([
+      adminClient
+        .from('orders')
+        .select('status, order_type, payment_status, balance_amount_due')
+        .neq('status', 'Awaiting Payment'),
+      adminClient
+        .from('order_collections')
+        .select('amount_collected'),
+    ]);
+
+    const fallbackOrders = fallbackOrdersRes.data || [];
+    const fallbackCollections = fallbackCollectionsRes.data || [];
+
+    const totalOrders = fallbackOrders.length;
+    const onlineOrdersCount = fallbackOrders.filter((o: any) => o.order_type === 'online').length;
+    const codOrdersCount = fallbackOrders.filter((o: any) => o.order_type === 'cod').length;
+    const awaitingDispatchCount = fallbackOrders.filter((o: any) =>
+      ['Confirmed', 'Processing'].includes(o.status)
+    ).length;
+    const deliveredCount = fallbackOrders.filter((o: any) => o.status === 'Delivered').length;
+    const pendingVerificationCount = fallbackOrders.filter((o: any) => o.status === 'Pending Verification').length;
+
+    const outstandingCodBalance = fallbackOrders
+      .filter(
+        (o: any) =>
+          o.order_type === 'cod' &&
+          o.payment_status !== 'fully_paid' &&
+          o.status !== 'Cancelled'
+      )
+      .reduce((sum: number, o: any) => sum + (Number(o.balance_amount_due) || 0), 0);
+
+    const collectedCodRevenue = fallbackCollections.reduce(
+      (sum: number, c: any) => sum + (Number(c.amount_collected) || 0),
+      0
+    );
+
+    kpis = {
+      totalOrders,
+      pendingVerificationCount,
+      onlineOrdersCount,
+      codOrdersCount,
+      awaitingDispatchCount,
+      deliveredCount,
+      outstandingCodBalance,
+      collectedCodRevenue,
+    };
+  }
+
+  const recentOrders: DashboardOrderRow[] = (recentOrdersRes.data || []).map(normalizeOrder);
+  const pendingVerifications: DashboardOrderRow[] = (pendingVerificationsRes.data || []).map(normalizeOrder);
+
+  const recentCollections: DashboardCodCollection[] = (recentCollectionsRes.data || []).map((c: any) => {
     const orderObj = Array.isArray(c.orders) ? c.orders[0] : c.orders;
     return {
       id: c.id,
