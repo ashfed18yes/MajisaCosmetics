@@ -103,7 +103,7 @@ export default function Footer() {
               </div>
             </Link>
             <p className="text-xs text-[#DDF3F2] leading-relaxed max-w-sm font-medium">
-              Majisa Cosmetics marries timeless regal botanical traditions with modern French formulation science. Designed for lovers of pure, clean elegance.
+              Majisa Cosmetics marries timeless regal botanical traditions with advanced clean formulation science. Designed for lovers of pure, clean elegance.
             </p>
 
             {/* Newsletter */}

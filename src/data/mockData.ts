@@ -72,10 +72,10 @@ export const BRANDS: Brand[] = [
     slug: 'majisa-atelier',
     name: 'Majisa Atelier',
     tagline: 'Royal Heritage & Modern Elegance',
-    description: 'The premier house creation. Handcrafted formulations marrying regal Indian botanical traditions with Parisian cosmetic chemistry.',
+    description: 'The premier house creation. Handcrafted formulations marrying regal botanical traditions with modern cosmetic chemistry.',
     logo: 'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?q=80&w=300&auto=format&fit=crop',
     banner: 'https://images.unsplash.com/photo-1616683693504-3ea7e9ad6fec?q=80&w=1600&auto=format&fit=crop',
-    origin: 'Jaipur & Paris',
+    origin: 'Master Atelier',
     founded: '2023',
   },
   {

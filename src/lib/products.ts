@@ -130,7 +130,7 @@ function mapSupabaseBrand(b: any): Brand {
     description: b.description || 'Dedicated to uncompromising purity, botanical science, and cruelty-free luxury standards.',
     logo: b.logo_url?.trim() || DEFAULT_BRAND_LOGO,
     banner: b.banner_url?.trim() || DEFAULT_BRAND_BANNER,
-    origin: b.origin || 'Jaipur',
+    origin: b.origin || 'Artisanal Studio',
     founded: b.founded_year || undefined,
   };
 }

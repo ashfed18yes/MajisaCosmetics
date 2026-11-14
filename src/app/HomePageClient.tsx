@@ -42,7 +42,7 @@ export default function HomePageClient({
               {/* Reference-Style Pill Badge */}
               <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white border border-[#D4E5E3] shadow-soft text-[#0B4145] text-xs font-bold">
                 <Sparkles className="w-3.5 h-3.5 text-[#128F92]" />
-                <span>Premier Botanical Cosmetics &bull; Handcrafted in Jaipur</span>
+                <span>Premier Botanical Formulations &bull; Clean Luxury Beauty</span>
               </div>
 
               {/* Dominant Calibrated Headline */}
@@ -53,7 +53,7 @@ export default function HomePageClient({
 
               {/* Supporting Copy */}
               <p className="text-xs sm:text-sm lg:text-base text-[#687F8D] leading-relaxed max-w-xl mx-auto lg:mx-0 font-medium">
-                Experience royal heritage botanicals perfected through modern French cosmetic science. Discover opulent pigments, cellular serums, and weightless velvet textures.
+                Experience royal heritage botanicals perfected through advanced cosmetic science. Discover opulent pigments, cellular serums, and weightless velvet textures.
               </p>
 
               {/* Calibrated Action Buttons */}
