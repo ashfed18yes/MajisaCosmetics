@@ -282,10 +282,16 @@ VALUES (
     jsonb_build_object(
         'is_active', true,
         'delivery_fee', 100.00,
-        'notes', 'Fixed delivery fee of Rs 100 applied to both Online and COD orders.'
+        'free_shipping_threshold', 2000.00,
+        'brackets', jsonb_build_array(
+            jsonb_build_object('min', 0, 'max', 500, 'fee', 100.00),
+            jsonb_build_object('min', 500, 'max', 2000, 'fee', 50.00),
+            jsonb_build_object('min', 2000, 'max', null, 'fee', 0.00)
+        ),
+        'notes', 'Tiered delivery fee brackets: Below ₹500: ₹100, ₹500 to below ₹2,000: ₹50, ₹2,000 and above: Free'
     ),
     true,
-    'Store delivery fee configuration. Fixed at Rs 100 for all orders.'
+    'Store delivery fee configuration with tiered brackets: Below 500: 100, 500 to below 2000: 50, 2000 and above: free.'
 )
 ON CONFLICT (key) DO NOTHING;
 
@@ -420,6 +426,11 @@ DECLARE
     v_advance_amount_paid NUMERIC(10,2) := 0.00;
     v_balance_amount_due NUMERIC(10,2);
     v_address_snapshot JSONB;
+    
+    -- Dynamic order & payment lifecycle state
+    v_order_status TEXT;
+    v_order_payment_status TEXT;
+    v_payment_verification_status TEXT;
     
     -- Address extraction variables
     v_addr_recipient TEXT;
@@ -673,19 +684,51 @@ BEGIN
         );
     END LOOP;
 
-    -- 7. Calculate Authoritative Totals
+    -- 7. Calculate Authoritative Delivery Fee & Order Lifecycle Totals
+    -- Exact Tiered Delivery Fee Brackets:
+    -- - Subtotal below Rs 500: Rs 100
+    -- - Subtotal Rs 500 to below Rs 2,000: Rs 50
+    -- - Subtotal Rs 2,000 and above: Free (Rs 0)
+    IF v_subtotal >= 2000.00 THEN
+        v_configured_delivery_fee := 0.00;
+    ELSIF v_subtotal >= 500.00 THEN
+        v_configured_delivery_fee := 50.00;
+    ELSE
+        v_configured_delivery_fee := 100.00;
+    END IF;
+
     v_total_amount := v_subtotal + v_configured_delivery_fee;
 
     IF p_order_type = 'online' THEN
+        -- Online Order: full payment required upfront via dynamic UPI QR
         v_payment_method := 'online_qr';
         v_amount_expected := v_total_amount;
         v_advance_amount_paid := 0.00;
         v_balance_amount_due := 0.00;
-    ELSE -- 'cod'
+        v_order_status := 'Awaiting Payment';
+        v_order_payment_status := 'pending';
+        v_payment_verification_status := 'awaiting_submission';
+    ELSIF p_order_type = 'cod' AND v_configured_delivery_fee = 0.00 THEN
+        -- COD with Complimentary Free Delivery: Zero advance payment required!
+        -- Order is immediately Confirmed and ready for packaging & shipping.
+        -- payment_status is 'advance_paid' (advance fulfilled), full product subtotal due at doorstep.
+        -- No payment attempt is recorded since no upfront transaction took place.
         v_payment_method := 'cod_advance';
-        v_amount_expected := v_configured_delivery_fee; -- Rs 100 upfront advance
+        v_amount_expected := 0.00;
         v_advance_amount_paid := 0.00;
-        v_balance_amount_due := v_subtotal; -- balance_amount_due = total_amount - delivery_fee (subtotal)
+        v_balance_amount_due := v_subtotal;
+        v_order_status := 'Confirmed';
+        v_order_payment_status := 'advance_paid';
+        v_payment_verification_status := NULL;
+    ELSE
+        -- COD with Advance Delivery Fee (Rs 100 or Rs 50): upfront advance proof required
+        v_payment_method := 'cod_advance';
+        v_amount_expected := v_configured_delivery_fee;
+        v_advance_amount_paid := 0.00;
+        v_balance_amount_due := v_subtotal;
+        v_order_status := 'Awaiting Payment';
+        v_order_payment_status := 'pending';
+        v_payment_verification_status := 'awaiting_submission';
     END IF;
 
     -- 8. Generate Collision-Resistant, Sequence-Backed Order Number
@@ -713,8 +756,8 @@ BEGIN
         v_order_number,
         v_user_id,
         p_order_type,
-        'Awaiting Payment',
-        'pending',
+        v_order_status,
+        v_order_payment_status,
         v_subtotal,
         v_configured_delivery_fee,
         v_total_amount,
@@ -752,46 +795,54 @@ BEGIN
         );
     END LOOP;
 
-    -- 11. Insert Initial Payment Attempt #1 in 'awaiting_submission' State
-    INSERT INTO public.payments (
-        order_id,
-        attempt_number,
-        payment_method,
-        amount_expected,
-        amount_submitted,
-        advance_amount,
-        balance_amount,
-        utr_reference,
-        proof_public_id,
-        proof_file_format,
-        verification_status
-    ) VALUES (
-        v_order_id,
-        1,
-        v_payment_method,
-        v_amount_expected,
-        0.00,
-        CASE WHEN p_order_type = 'cod' THEN v_configured_delivery_fee ELSE 0.00 END,
-        v_balance_amount_due,
-        NULL,
-        NULL,
-        NULL,
-        'awaiting_submission'
-    ) RETURNING id INTO v_payment_id;
+    -- 11. Insert Initial Payment Attempt #1 (Only when upfront payment is expected)
+    -- For online orders and COD orders with an advance delivery fee (> Rs 0),
+    -- create an initial payment attempt in 'awaiting_submission' state.
+    -- For COD orders with free delivery (Rs 0 advance), no payment attempt is needed;
+    -- the order is immediately Confirmed with full balance due at doorstep.
+    IF p_order_type = 'online' OR v_configured_delivery_fee > 0.00 THEN
+        INSERT INTO public.payments (
+            order_id,
+            attempt_number,
+            payment_method,
+            amount_expected,
+            amount_submitted,
+            advance_amount,
+            balance_amount,
+            utr_reference,
+            proof_public_id,
+            proof_file_format,
+            verification_status
+        ) VALUES (
+            v_order_id,
+            1,
+            v_payment_method,
+            v_amount_expected,
+            0.00,
+            CASE WHEN p_order_type = 'cod' THEN v_configured_delivery_fee ELSE 0.00 END,
+            v_balance_amount_due,
+            NULL,
+            NULL,
+            NULL,
+            v_payment_verification_status
+        ) RETURNING id INTO v_payment_id;
+    ELSE
+        v_payment_id := NULL;
+    END IF;
 
     RETURN jsonb_build_object(
         'success', true,
         'order_id', v_order_id,
         'order_number', v_order_number,
         'payment_id', v_payment_id,
-        'attempt_number', 1,
+        'attempt_number', CASE WHEN v_payment_id IS NOT NULL THEN 1 ELSE NULL END,
         'order_type', p_order_type,
         'subtotal', v_subtotal,
         'delivery_fee', v_configured_delivery_fee,
         'total_amount', v_total_amount,
         'amount_expected', v_amount_expected,
         'balance_amount_due', v_balance_amount_due,
-        'status', 'Awaiting Payment'
+        'status', v_order_status
     );
 END;
 $$;

@@ -17,6 +17,7 @@ import {
   ChevronDown,
 } from 'lucide-react';
 import { useCart } from '@/context/CartContext';
+import { calculateDeliveryFee } from '@/lib/delivery';
 
 export default function CartDrawer() {
   const router = useRouter();
@@ -69,7 +70,7 @@ export default function CartDrawer() {
 
   const remainingForFreeShipping = Math.max(0, freeShippingThreshold - subtotal);
   const progressPercent = Math.min(100, Math.round((subtotal / freeShippingThreshold) * 100));
-  const shippingCost = remainingForFreeShipping === 0 ? 0 : 150;
+  const shippingCost = calculateDeliveryFee(subtotal);
   const estimatedTotal = subtotal + shippingCost;
 
   return (
@@ -279,8 +280,8 @@ export default function CartDrawer() {
                 </div>
                 <div className="flex justify-between text-[#687F8D]">
                   <span>Royal Shipping</span>
-                  <span className={`font-bold ${remainingForFreeShipping === 0 ? 'text-[#128F92]' : 'text-[#0B4145]'}`}>
-                    {remainingForFreeShipping === 0 ? 'Complimentary' : '₹150'}
+                  <span className={`font-bold ${shippingCost === 0 ? 'text-[#128F92]' : 'text-[#0B4145]'}`}>
+                    {shippingCost === 0 ? 'Complimentary' : `₹${shippingCost}`}
                   </span>
                 </div>
                 <div className="pt-2 border-t border-[#D4E5E3] flex justify-between items-baseline">
@@ -409,8 +410,8 @@ export default function CartDrawer() {
                 </div>
                 <div className="flex justify-between text-[#687F8D]">
                   <span>Royal Shipping</span>
-                  <span className={`font-bold ${remainingForFreeShipping === 0 ? 'text-[#128F92]' : 'text-[#0B4145]'}`}>
-                    {remainingForFreeShipping === 0 ? 'Complimentary' : '₹150'}
+                  <span className={`font-bold ${shippingCost === 0 ? 'text-[#128F92]' : 'text-[#0B4145]'}`}>
+                    {shippingCost === 0 ? 'Complimentary' : `₹${shippingCost}`}
                   </span>
                 </div>
                 {remainingForFreeShipping > 0 && (

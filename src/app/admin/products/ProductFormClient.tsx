@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useState, useTransition, useRef } from 'react';
+import React, { useState, useEffect, useTransition, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
+import { createClient } from '@/lib/supabase/client';
 import {
   ArrowLeft,
   Plus,
@@ -77,6 +78,32 @@ export default function ProductFormClient({
   // Brands and categories state
   const [brands, setBrands] = useState<BrandOption[]>(initialBrands);
   const [categories, setCategories] = useState<CategoryOption[]>(initialCategories);
+
+  // Dynamically fetch and synchronize all available categories from Supabase categories table
+  useEffect(() => {
+    let isMounted = true;
+    async function loadDynamicCategories() {
+      try {
+        const supabase = createClient();
+        const { data, error } = await supabase
+          .from('categories')
+          .select('id, name')
+          .order('name', { ascending: true });
+
+        if (isMounted && !error && data && data.length > 0) {
+          setCategories(data);
+        }
+      } catch (err) {
+        console.error('Error fetching categories dynamically from Supabase:', err);
+      }
+    }
+
+    loadDynamicCategories();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   // Form Fields - Basic Information
   const [name, setName] = useState(initialData?.name || '');
@@ -659,32 +686,36 @@ export default function ProductFormClient({
               </select>
             </div>
 
-            {/* Category */}
+            {/* Category Dropdown */}
             <div>
               <div className="flex items-center justify-between mb-1">
-                <label className="text-xs font-semibold text-[#2D2A26]">
+                <label htmlFor="product-category-dropdown" className="text-xs font-semibold text-[#2D2A26]">
                   Category <span className="text-xs font-normal text-gray-400">(Optional)</span>
                 </label>
                 <button
                   type="button"
                   onClick={() => setIsCategoryModalOpen(true)}
-                  className="text-xs font-semibold text-[#0B4145] hover:underline"
+                  className="text-xs font-semibold text-[#0B4145] hover:underline cursor-pointer"
                 >
                   + Add New
                 </button>
               </div>
-              <select
-                value={categoryId}
-                onChange={(e) => setCategoryId(e.target.value)}
-                className="w-full px-3 py-2 text-xs sm:text-sm bg-[#FBF9F5] border border-[#D8D3C8] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#0B4145] text-[#2D2A26]"
-              >
-                <option value="">None (Unassigned)</option>
-                {categories.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
+              <div className="relative">
+                <select
+                  id="product-category-dropdown"
+                  value={categoryId}
+                  onChange={(e) => setCategoryId(e.target.value)}
+                  className="w-full px-3 py-2 pr-8 text-xs sm:text-sm bg-[#FBF9F5] border border-[#D8D3C8] rounded-xl focus:outline-none focus:ring-1 focus:ring-[#0B4145] text-[#2D2A26] cursor-pointer appearance-none"
+                >
+                  <option value="">Select a Category</option>
+                  {categories.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="w-4 h-4 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+              </div>
             </div>
           </div>
 

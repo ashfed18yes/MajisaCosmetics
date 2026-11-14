@@ -13,6 +13,9 @@ export const metadata = {
   description: 'Update product information and catalog availability.',
 };
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export default async function EditProductPage({ params }: EditProductPageProps) {
   await requireAdmin();
   const { id } = await params;

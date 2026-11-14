@@ -363,7 +363,7 @@ export default function CollectionsClient({
                 ? 'Our real catalog is being prepared. Check back soon for our latest arrivals.'
                 : 'We could not find any products matching your selected criteria. Try adjusting or clearing your filters.'
             }
-            columns="grid-cols-2 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 2xl:grid-cols-4"
+            columns="grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-4"
           />
 
           {hasMore && (

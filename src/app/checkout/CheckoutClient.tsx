@@ -26,6 +26,7 @@ import {
   Info,
 } from 'lucide-react';
 import { useCart } from '@/context/CartContext';
+import { calculateDeliveryFee } from '@/lib/delivery';
 import type { CustomerAddress } from '@/app/account/AccountClient';
 import {
   buildUpiPaymentUri,
@@ -302,9 +303,10 @@ export default function CheckoutClient({
     setProofPreviewUrl(null);
   };
 
-  // Upfront vs Doorstep calculation for display
-  const totalAmount = subtotal + deliveryFee;
-  const upfrontPayable = orderType === 'online' ? totalAmount : deliveryFee;
+  // Upfront vs Doorstep calculation for display based on authoritative delivery brackets
+  const activeDeliveryFee = calculateDeliveryFee(subtotal);
+  const totalAmount = subtotal + activeDeliveryFee;
+  const upfrontPayable = orderType === 'online' ? totalAmount : activeDeliveryFee;
   const doorstepBalance = orderType === 'online' ? 0 : subtotal;
 
   // Handle Order Creation
@@ -411,6 +413,23 @@ export default function CheckoutClient({
         order_type: 'online' | 'cod';
       };
 
+      // Clear the cart context now that the order is recorded in the database
+      clearCart();
+
+      // If COD order has free delivery (amount_expected === 0), navigate directly to success page
+      if (
+        orderData.order_type === 'cod' &&
+        (Number(orderData.amount_expected) === 0 ||
+          (orderData as any).is_auto_confirmed)
+      ) {
+        router.push(
+          `/checkout/success?order_number=${encodeURIComponent(
+            orderData.order_number
+          )}&order_id=${encodeURIComponent(orderData.order_id)}`
+        );
+        return;
+      }
+
       // Set active order to display UPI payment modal
       setActiveOrder({
         orderId: orderData.order_id,
@@ -421,9 +440,6 @@ export default function CheckoutClient({
         vpa: result.vpa || '',
         merchantName: result.merchantName || 'Majisa Cosmetics',
       });
-
-      // Clear the cart context now that the order is recorded in the database
-      clearCart();
 
       // Speculatively prefetch order confirmation page for instant redirect upon verification
       router.prefetch(
@@ -1047,14 +1063,16 @@ export default function CheckoutClient({
                         <div className="flex-1 min-w-0">
                           <div className="flex flex-wrap items-center gap-1.5">
                             <h3 className="font-serif text-sm sm:text-base font-bold text-charcoal-900 leading-tight">
-                              Cash on Delivery (₹{deliveryFee} Advance)
+                              Cash on Delivery ({activeDeliveryFee > 0 ? `₹${activeDeliveryFee} Advance` : 'Free Delivery'})
                             </h3>
                             <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-rosegold-100 text-rosegold-800 leading-none">
-                              Fixed Delivery Advance
+                              {activeDeliveryFee > 0 ? 'Fixed Delivery Advance' : 'Free Delivery'}
                             </span>
                           </div>
                           <p className="text-[11px] sm:text-xs text-charcoal-600 font-light leading-snug mt-0.5">
-                            Pay ₹{deliveryFee} fixed delivery charge upfront via UPI QR; product balance of ₹{subtotal.toLocaleString('en-IN')} collected at delivery
+                            {activeDeliveryFee > 0
+                              ? `Pay ₹${activeDeliveryFee} fixed delivery charge upfront via UPI QR; product balance of ₹${subtotal.toLocaleString('en-IN')} collected at delivery`
+                              : `Complimentary delivery; total product balance of ₹${subtotal.toLocaleString('en-IN')} collected at delivery`}
                           </p>
                         </div>
                       </div>
@@ -1073,7 +1091,7 @@ export default function CheckoutClient({
                     </div>
 
                     <div className="sm:pl-11 text-[11px] sm:text-xs text-charcoal-500 font-light border-t border-ivory-100/70 pt-2 flex flex-wrap items-center justify-between gap-1">
-                      <span>Upfront Delivery Advance: <strong className="text-plum-900 font-semibold">₹{deliveryFee.toLocaleString('en-IN')}</strong></span>
+                      <span>Upfront Delivery Advance: <strong className="text-plum-900 font-semibold">{activeDeliveryFee > 0 ? `₹${activeDeliveryFee.toLocaleString('en-IN')}` : 'Free (₹0)'}</strong></span>
                       <span>Doorstep Balance Due: <strong className="text-amber-800 font-semibold">₹{subtotal.toLocaleString('en-IN')}</strong></span>
                     </div>
                   </div>
@@ -1144,13 +1162,15 @@ export default function CheckoutClient({
 
                 <div className="flex items-center justify-between text-charcoal-600">
                   <div className="flex items-center gap-1.5">
-                    <span>Fixed Delivery Charge</span>
+                    <span>Delivery Charge</span>
                     <span className="text-[10px] text-rosegold-500 bg-rosegold-50 px-1.5 py-0.5 rounded">
-                      Standard
+                      {activeDeliveryFee === 0 ? 'Free' : 'Standard'}
                     </span>
                   </div>
                   <span className="font-medium text-charcoal-900">
-                    ₹{deliveryFee.toLocaleString('en-IN')}
+                    {activeDeliveryFee === 0
+                      ? 'Complimentary'
+                      : `₹${activeDeliveryFee.toLocaleString('en-IN')}`}
                   </span>
                 </div>
 

@@ -8,6 +8,9 @@ export const metadata = {
   description: 'Add a new luxury cosmetic product to your catalog.',
 };
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export default async function NewProductPage() {
   await requireAdmin();
   const adminClient = createAdminClient();

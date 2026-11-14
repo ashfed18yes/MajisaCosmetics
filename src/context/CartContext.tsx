@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { CartItem, Product } from '@/types';
+import { FREE_DELIVERY_THRESHOLD } from '@/lib/delivery';
 
 interface CartContextType {
   cart: CartItem[];
@@ -102,7 +103,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
   const subtotal = cart.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
-  const freeShippingThreshold = 1999;
+  const freeShippingThreshold = FREE_DELIVERY_THRESHOLD;
 
   return (
     <CartContext.Provider

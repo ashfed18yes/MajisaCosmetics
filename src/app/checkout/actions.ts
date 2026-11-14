@@ -9,6 +9,7 @@ import {
   deleteCloudinaryProofImage,
 } from '@/lib/cloudinary';
 import { validateUtrFormat } from '@/lib/payments/upi';
+import { calculateDeliveryFee } from '@/lib/delivery';
 
 export interface CheckoutItemInput {
   productId: string;
@@ -275,6 +276,86 @@ export async function createOrderAction(input: CreateOrderInput) {
         rpcError?.message ||
         'Failed to initialize order and payment. Please try again.',
     };
+  }
+
+  const orderSubtotal = Number(rpcResult.subtotal) || 0;
+  const authoritativeDeliveryFee = calculateDeliveryFee(orderSubtotal);
+
+  // Reconcile delivery fee with authoritative brackets if RPC set a different amount
+  if (Number(rpcResult.delivery_fee) !== authoritativeDeliveryFee) {
+    const adminClient = createAdminClient();
+    const correctTotal = orderSubtotal + authoritativeDeliveryFee;
+    const correctExpected =
+      input.orderType === 'online' ? correctTotal : authoritativeDeliveryFee;
+    const correctBalance = input.orderType === 'online' ? 0.0 : orderSubtotal;
+
+    await adminClient
+      .from('orders')
+      .update({
+        delivery_fee: authoritativeDeliveryFee,
+        total_amount: correctTotal,
+        balance_amount_due: correctBalance,
+      })
+      .eq('id', rpcResult.order_id);
+
+    if (rpcResult.payment_id) {
+      await adminClient
+        .from('payments')
+        .update({
+          amount_expected: correctExpected,
+        })
+        .eq('id', rpcResult.payment_id);
+    }
+
+    rpcResult.delivery_fee = authoritativeDeliveryFee;
+    rpcResult.total_amount = correctTotal;
+    rpcResult.amount_expected = correctExpected;
+    rpcResult.balance_amount_due = correctBalance;
+  }
+
+  // If COD order has free delivery (₹0 advance needed), auto-confirm order without requiring upfront payment proof
+  if (input.orderType === 'cod' && authoritativeDeliveryFee === 0) {
+    if (rpcResult.status !== 'Confirmed') {
+      const adminClient = createAdminClient();
+      if (rpcResult.payment_id) {
+        await adminClient
+          .from('payments')
+          .update({
+            verification_status: 'verified',
+            amount_submitted: 0,
+            amount_expected: 0,
+            utr_reference: null,
+            verified_at: new Date().toISOString(),
+            admin_notes: 'Complimentary free delivery - zero advance required',
+          })
+          .eq('id', rpcResult.payment_id);
+      }
+
+      // Transition via allowed states: 'Awaiting Payment' -> 'Pending Verification' -> 'Confirmed'
+      await adminClient
+        .from('orders')
+        .update({
+          status: 'Pending Verification',
+          advance_amount_paid: 0,
+          balance_amount_due: orderSubtotal,
+        })
+        .eq('id', rpcResult.order_id);
+
+      await adminClient
+        .from('orders')
+        .update({
+          status: 'Confirmed',
+          payment_status: 'advance_paid',
+          advance_amount_paid: 0,
+          balance_amount_due: orderSubtotal,
+        })
+        .eq('id', rpcResult.order_id);
+
+      rpcResult.status = 'Confirmed';
+      rpcResult.payment_status = 'advance_paid';
+      rpcResult.amount_expected = 0;
+      rpcResult.is_auto_confirmed = true;
+    }
   }
 
   return {
