@@ -3,7 +3,6 @@ import { createPublicClient } from '@/lib/supabase/public';
 import { Product, Category, Brand, ProductVariant, ProductSize } from '@/types';
 import {
   CATEGORIES as MOCK_CATEGORIES,
-  BRANDS as MOCK_BRANDS,
 } from '@/data/mockData';
 
 const DEFAULT_PRODUCT_IMAGE =
@@ -119,18 +118,60 @@ function mapSupabaseCategory(c: any): Category {
 }
 
 /**
- * Transforms a raw Supabase brand row into the frontend `Brand` interface.
+ * Automatically selects a representative product image for a brand card.
+ * Priority:
+ * 1. Available products belonging to the brand with an is_primary = true image.
+ * 2. Available products with the first available product image.
+ * 3. Any brand product image.
+ * 4. Explicit brand banner_url / logo_url.
+ * 5. Neutral beauty fallback (DEFAULT_BRAND_BANNER).
+ */
+function selectBrandCoverImage(b: any): string {
+  if (Array.isArray(b.products) && b.products.length > 0) {
+    const availableProducts = b.products.filter((p: any) => p.is_available ?? true);
+    const candidateProducts = availableProducts.length > 0 ? availableProducts : b.products;
+
+    const allImages: Array<{ secure_url: string; is_primary?: boolean; display_order?: number }> = [];
+    for (const p of candidateProducts) {
+      if (Array.isArray(p.product_images)) {
+        for (const img of p.product_images) {
+          if (img.secure_url && img.secure_url.trim()) {
+            allImages.push(img);
+          }
+        }
+      }
+    }
+
+    if (allImages.length > 0) {
+      allImages.sort((x, y) => {
+        if (x.is_primary && !y.is_primary) return -1;
+        if (!x.is_primary && y.is_primary) return 1;
+        return (x.display_order || 0) - (y.display_order || 0);
+      });
+      return allImages[0].secure_url.trim();
+    }
+  }
+
+  if (b.banner_url?.trim()) return b.banner_url.trim();
+  if (b.logo_url?.trim()) return b.logo_url.trim();
+
+  return DEFAULT_BRAND_BANNER;
+}
+
+/**
+ * Transforms a raw Supabase brand row (with nested products and images) into the frontend `Brand` interface.
  */
 function mapSupabaseBrand(b: any): Brand {
+  const coverImage = selectBrandCoverImage(b);
   return {
     id: b.id,
     slug: b.slug,
     name: b.name,
-    tagline: b.tagline || 'Artisanal Beauty House',
-    description: b.description || 'Dedicated to uncompromising purity, botanical science, and cruelty-free luxury standards.',
-    logo: b.logo_url?.trim() || DEFAULT_BRAND_LOGO,
-    banner: b.banner_url?.trim() || DEFAULT_BRAND_BANNER,
-    origin: b.origin || 'Artisanal Studio',
+    tagline: b.tagline || 'Plant-Based Active Formulations',
+    description: b.description || 'Clean, plant-powered active formulations delivering targeted wellness and beauty results.',
+    logo: b.logo_url?.trim() || coverImage,
+    banner: coverImage,
+    origin: b.origin || undefined,
     founded: b.founded_year || undefined,
   };
 }
@@ -262,7 +303,8 @@ export const getStorefrontCategoryBySlug = cache(async (slug: string): Promise<C
 });
 
 /**
- * Fetches all brands from Supabase merged with mock brands.
+ * Fetches all active brands exclusively from Supabase, joining their product images
+ * in a single query to automatically derive representative brand-card imagery.
  * Memoized per-request with React cache().
  */
 export const getStorefrontBrands = cache(async (): Promise<Brand[]> => {
@@ -270,27 +312,35 @@ export const getStorefrontBrands = cache(async (): Promise<Brand[]> => {
     const supabase = createPublicClient();
     const { data: rawBrands, error } = await supabase
       .from('brands')
-      .select('*')
+      .select(`
+        *,
+        products (
+          id,
+          is_available,
+          product_images (
+            secure_url,
+            is_primary,
+            display_order
+          )
+        )
+      `)
       .eq('is_active', true)
       .order('name', { ascending: true });
 
     if (error || !rawBrands) {
-      return MOCK_BRANDS;
+      console.error('Error fetching Supabase storefront brands:', error);
+      return [];
     }
 
-    const liveBrands = rawBrands.map(mapSupabaseBrand);
-    const liveSlugs = new Set(liveBrands.map((b) => b.slug));
-    const nonConflictingMock = MOCK_BRANDS.filter((m) => !liveSlugs.has(m.slug));
-
-    return [...liveBrands, ...nonConflictingMock];
+    return rawBrands.map(mapSupabaseBrand);
   } catch (err) {
     console.error('Error in getStorefrontBrands:', err);
-    return MOCK_BRANDS;
+    return [];
   }
 });
 
 /**
- * Retrieves a brand by slug from Supabase or fallback.
+ * Retrieves a brand by slug directly from Supabase with associated product imagery.
  * Memoized per-request with React cache().
  */
 export const getStorefrontBrandBySlug = cache(async (slug: string): Promise<Brand | null> => {
@@ -300,7 +350,18 @@ export const getStorefrontBrandBySlug = cache(async (slug: string): Promise<Bran
     const supabase = createPublicClient();
     const { data: rawBrand, error } = await supabase
       .from('brands')
-      .select('*')
+      .select(`
+        *,
+        products (
+          id,
+          is_available,
+          product_images (
+            secure_url,
+            is_primary,
+            display_order
+          )
+        )
+      `)
       .eq('slug', slug)
       .eq('is_active', true)
       .maybeSingle();
@@ -309,12 +370,10 @@ export const getStorefrontBrandBySlug = cache(async (slug: string): Promise<Bran
       return mapSupabaseBrand(rawBrand);
     }
 
-    const mockMatch = MOCK_BRANDS.find((b) => b.slug === slug);
-    return mockMatch || null;
+    return null;
   } catch (err) {
     console.error('Error in getStorefrontBrandBySlug:', slug, err);
-    const mockMatch = MOCK_BRANDS.find((b) => b.slug === slug);
-    return mockMatch || null;
+    return null;
   }
 });
 

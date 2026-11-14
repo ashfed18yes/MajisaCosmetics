@@ -36,7 +36,7 @@ export default function BrandsDirectoryClient({ initialBrands }: BrandsDirectory
           The Houses of Majisa
         </h1>
         <p className="mt-1.5 text-xs sm:text-sm text-[#687F8D] font-medium leading-relaxed">
-          From royal palace botanical laboratories of Jaipur to clean biotechnology ateliers of Geneva and Paris—discover the premier beauty houses we curate.
+          Discover our curated collection of premier beauty houses dedicated to clean botanicals and advanced formulation science.
         </p>
 
         {/* Brand Search Bar Card */}

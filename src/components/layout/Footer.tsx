@@ -177,23 +177,8 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="/brands/majisa-atelier" className="hover:text-white transition-colors">
-                  Majisa Atelier
-                </Link>
-              </li>
-              <li>
-                <Link href="/brands/lumiere-royale" className="hover:text-white transition-colors">
-                  Lumière Royale
-                </Link>
-              </li>
-              <li>
-                <Link href="/brands/velours-de-paris" className="hover:text-white transition-colors">
-                  Velours de Paris
-                </Link>
-              </li>
-              <li>
-                <Link href="/brands/solaris-sun-labs" className="hover:text-white transition-colors">
-                  Solaris Sun Labs
+                <Link href="/brands/plix" className="hover:text-white transition-colors">
+                  Plix
                 </Link>
               </li>
             </ul>
