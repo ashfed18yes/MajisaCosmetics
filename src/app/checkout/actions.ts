@@ -12,6 +12,7 @@ import {
 } from '@/lib/cloudinary';
 import { validateUtrFormat } from '@/lib/payments/upi';
 import { calculateDeliveryFee } from '@/lib/delivery';
+import { sendOrderCreatedNotifications } from '@/lib/notifications/email';
 
 export interface CheckoutItemInput {
   productId: string;
@@ -359,6 +360,11 @@ export async function createOrderAction(input: CreateOrderInput) {
     // Revalidate admin queues so the newly confirmed free-delivery COD order is visible immediately
     revalidatePath('/admin');
     revalidatePath('/admin/orders/cod');
+
+    // Trigger Order Created notifications for auto-confirmed free delivery COD orders
+    sendOrderCreatedNotifications(rpcResult.order_id).catch((err) => {
+      console.error('[Checkout] Failed to dispatch order created notifications:', err);
+    });
   }
 
   return {
@@ -555,6 +561,11 @@ export async function submitDirectPaymentProofAction(input: DirectProofSubmissio
   revalidatePath('/admin/orders/cod');
   revalidatePath(`/admin/orders/${orderId}`);
 
+  // Trigger Order Created notifications now that the order is a valid admin-visible order
+  sendOrderCreatedNotifications(orderId).catch((err) => {
+    console.error('[Checkout] Failed to dispatch order created notifications:', err);
+  });
+
   return {
     success: true,
     data: rpcResult,
@@ -671,6 +682,11 @@ export async function submitPaymentProofAction(formData: FormData) {
     revalidatePath('/admin/orders/online');
     revalidatePath('/admin/orders/cod');
     revalidatePath(`/admin/orders/${orderId}`);
+
+    // Trigger Order Created notifications now that the order is a valid admin-visible order
+    sendOrderCreatedNotifications(orderId).catch((err) => {
+      console.error('[Checkout] Failed to dispatch order created notifications:', err);
+    });
 
     return {
       success: true,

@@ -5,6 +5,10 @@ import { requireAdmin } from '@/lib/auth/adminGuard';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getSignedPaymentProofUrl } from '@/lib/cloudinary';
+import {
+  sendPaymentVerifiedNotification,
+  sendOrderDeliveredNotification,
+} from '@/lib/notifications/email';
 
 function isValidUuid(id: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
@@ -220,6 +224,16 @@ export async function verifyPaymentAction(input: VerifyPaymentInput) {
         success: false,
         error: rpcError?.message || 'Failed to verify payment with database.',
       };
+    }
+
+    // Trigger customer notification for payment verified (idempotent outbox)
+    if (rpcResult?.order_id) {
+      sendPaymentVerifiedNotification(rpcResult.order_id, {
+        paymentId: input.paymentId,
+        verifiedAmount: roundedAmount,
+      }).catch((notifErr) => {
+        console.error('[AdminOrders] Failed to dispatch payment verified notification:', notifErr);
+      });
     }
 
     revalidatePath('/admin');
@@ -663,6 +677,13 @@ export async function updateFulfillmentStatusAction(input: UpdateFulfillmentStat
         success: false,
         error: updateErr.message || 'Database rejected status transition.',
       };
+    }
+
+    // Trigger customer notification if status transitioned to Delivered (idempotent outbox)
+    if (input.newStatus === 'Delivered') {
+      sendOrderDeliveredNotification(input.orderId).catch((notifErr) => {
+        console.error('[AdminOrders] Failed to dispatch order delivered notification:', notifErr);
+      });
     }
 
     revalidatePath('/admin');
